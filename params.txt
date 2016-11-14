@@ -1,0 +1,2 @@
+2 2 2 128 128 128
+//divisions along each axis, subcube dimensions
