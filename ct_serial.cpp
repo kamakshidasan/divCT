@@ -1526,17 +1526,18 @@ int main(int argc, char **argv) {
     }
 
     // Open file with parameters specified
-    //FILE* param = fopen("params-adhitya.txt", "w");
-    //fscanf(param, "%d %d %d %d %d %d", &divx, &divy, &divz, &sub_sizex, &sub_sizey, &sub_sizez);
-    //fclose(param);
+    FILE* param = fopen("params.txt", "w");
+    fscanf(param, "%d %d %d %d %d %d", &divx, &divy, &divz, &sub_sizex, &sub_sizey, &sub_sizez);
+    fclose(param);
 
     // Adhitya: Remove Later!
-    divx = 2;
+    /*divx = 2;
     divy = 2;
     divz = 4;
     sub_sizex = 32;
     sub_sizey = 32;
     sub_sizez = 16;
+    */
 
     // Find dimensions of the complete data
     global_dimx = divx * sub_sizex;
@@ -1608,18 +1609,6 @@ int main(int argc, char **argv) {
     // Read the Input Grid file
     readInputGrid(file);
 
-    float maximum_value = -1.0;
-    float sum = 0.0;
-    for (int i = 0; i<num_vert; i++){
-        if(vertices[i] > maximum_value){
-            maximum_value = vertices[i];
-        }
-        sum += vertices[i];
-    }
-
-    cout << "Average Value in Array " << sum/num_vert << endl;
-    cout << "Maximum Value in Array " << maximum_value << endl;
-
     cout << "No.  of vertices : " << num_vert << endl;
 
     gettimeofday(&end1, NULL);
@@ -1672,7 +1661,7 @@ int main(int argc, char **argv) {
 
     printf("\n---------writing time------: %ld\n\n", mtime);
 
-    std::cin.ignore();
+    //std::cin.ignore();
 
 }
 
