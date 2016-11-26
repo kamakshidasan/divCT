@@ -415,6 +415,12 @@ void classifyCriticalPoints() {
         int done[6] = {-1, -1, -1, -1, -1, -1};
         // At the end of routine, done has 1, and 2 if it belongs to lower link, and 3 and 4 if it belongs to upper link
         // the numbers denoting the component
+
+        // Can the count be more than 2 in both cases?
+        // No. Everytime a vertex has been processed, all 4 of its neighbors are checked.
+        // So, 5 vertices are checked in one single shot and and its neighbors are also checked using BFS in the queue
+        // And all of them will be assigned the same count (if at all).
+        // The remaining one vertex who wouldn't have been checked, will be checked during the iteration
         int lowerLinkCt = 0;
         int upperLinkCt = 0;
 
@@ -497,22 +503,56 @@ void classifyCriticalPoints() {
         }
 
         // do whatever processing is required
+
+        // A vertex is regular if its upper link and one lower link have exactly one component
         if (lowerLinkCt == 1 && upperLinkCt == 1) {
-            if (bnd[0] != -1)
+            // Since we have already defined the type of a vertex to be regular above,
+            // we dont have to do it again in this condition
+            if (bnd[0] != -1) { // If the point is on the boundary
+                // The point outside the boundary is bnd[5]
+                // Take the coordinate opposite to it (bnd[0])
+                // If that coordinate is independently a link and
+                // it's neighbours are present in a different link
+                // then the boundary extrema is taken as a saddle
                 if ((done[bnd[0]] != done[bnd[1]])
                         && (done[bnd[0]] != done[bnd[2]])
                         && (done[bnd[0]] != done[bnd[3]])
-                        && (done[bnd[0]] != done[bnd[4]]))
+                        && (done[bnd[0]] != done[bnd[4]])) {
                     type[v] = SADDLE;
-                else
+                }
+                else {
+                    // Otherwise, it is just another regular point with exactly one different components
                     type[v] = REGULAR;
-        } else if (lowerLinkCt == 0 && upperLinkCt == 1) {
+                }
+            }
+        }
+
+        // A vertex is a minimum if its lower link is empty
+        else if (lowerLinkCt == 0 && upperLinkCt == 1) {
             type[v] = MINIMUM;
-        } else if (lowerLinkCt == 1 && upperLinkCt == 0) {
+        }
+
+        // A vertex is a maximum if its upper link is empty
+        else if (lowerLinkCt == 1 && upperLinkCt == 0) {
             type[v] = MAXIMUM;
-        } else if (lowerLinkCt == 0 || upperLinkCt == 0) {
+        }
+
+        else if (lowerLinkCt == 0 || upperLinkCt == 0) {
             type[v] = UNDEFINED;
-        } else {
+        }
+
+        // A vertex in the input structured grid is a saddle only when its
+        // lower (upper) link lies on a plane normal to one of the axes and
+        // its upper (lower) link consists of two isolated vertices.
+        else {
+            // This is clearly satisfied for (lowerLinkCt, upperLinkCt) pairs of (1,2) and (2,1)
+            // Q: What about cases like (0,2), (2,0) and (2,2)?
+            // A: Consider the case where points 5 and 4 are isolated and are upper links
+            // Now, the rest (0,1,2,3) have to be either lower or upper links.
+            // Even if one among them are part of an upper link, then points 5 and 4 are not isolated.
+            // This implies the rest of the neighbors will be part of the lower link
+            // Clearly (0,2) and (2,0) are not possible. Similarly, (2,2) is not possible
+
             type[v] = SADDLE;
         }
 
@@ -1526,18 +1566,9 @@ int main(int argc, char **argv) {
     }
 
     // Open file with parameters specified
-    FILE* param = fopen("params.txt", "w");
+    FILE* param = fopen("params.txt", "r");
     fscanf(param, "%d %d %d %d %d %d", &divx, &divy, &divz, &sub_sizex, &sub_sizey, &sub_sizez);
     fclose(param);
-
-    // Adhitya: Remove Later!
-    /*divx = 2;
-    divy = 2;
-    divz = 4;
-    sub_sizex = 32;
-    sub_sizey = 32;
-    sub_sizez = 16;
-    */
 
     // Find dimensions of the complete data
     global_dimx = divx * sub_sizex;
