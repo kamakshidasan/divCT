@@ -507,8 +507,10 @@ void classifyCriticalPoints() {
         // A vertex is regular if its upper link and one lower link have exactly one component
         if (lowerLinkCt == 1 && upperLinkCt == 1) {
             // Since we have already defined the type of a vertex to be regular above,
-            // we dont have to do it again in this condition
-            if (bnd[0] != -1) { // If the point is on the boundary
+            // we dont have to assign/check again in this condition
+
+            // If the point is on the boundary
+            if (bnd[0] != -1) {
                 // The point outside the boundary is bnd[5]
                 // Take the coordinate opposite to it (bnd[0])
                 // If that coordinate is independently a link and
@@ -520,8 +522,9 @@ void classifyCriticalPoints() {
                         && (done[bnd[0]] != done[bnd[4]])) {
                     type[v] = SADDLE;
                 }
+
+                // Otherwise, it is just another regular point with exactly one different components
                 else {
-                    // Otherwise, it is just another regular point with exactly one different components
                     type[v] = REGULAR;
                 }
             }
