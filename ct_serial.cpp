@@ -170,11 +170,11 @@ int F101 = 5;
 int F110 = 3;
 int F111 = 7;
 
-int XY = 1;
-int YZ = 2;
-int XZ = 4;
-int XYZ = 8;
-int XYZ2 = 16;
+int XY = 1;     //00001
+int YZ = 2;     //00010
+int XZ = 4;     //00100
+int XYZ = 8;    //01000
+int XYZ2 = 16;  //10000
 
 // The convention followed for representing neighbors
 // If p has coordinates (x,y,z)
@@ -307,33 +307,29 @@ bool isFaceCP(int v, int axis, int dimx, int dimy, int dimz, int x, int y,
 
     face[0] = v;
     if (axis == XY) {
-        face[1] = v + 1;
-        face[2] = v + dimx;
-        face[3] = face[2] + 1;
+        face[1] = v + 1;        // (x+1,y,z)
+        face[2] = v + dimx;     // (x,y+1,z)
+        face[3] = face[2] + 1;  // (x+1,y+1,z)
     }
     if (axis == XZ) {
-        face[1] = v + 1;
-        face[2] = v + dimxy;
-        face[3] = face[2] + 1;
+        face[1] = v + 1;        // (x+1,y,z)
+        face[2] = v + dimxy;    // (x,y,z+1)
+        face[3] = face[2] + 1;  // (x+1,y,z+1)
     }
 
     if (axis == YZ) {
-        face[1] = v + dimx;
-        face[2] = v + dimxy;
-        face[3] = face[2] + dimx;
+        face[1] = v + dimx;         // (x,y+1,z)
+        face[2] = v + dimxy;        // (x,y,z+1)
+        face[3] = face[2] + dimx;   // (x,y+1,z+1)
     }
 
-    if (isGreater(vertices, face[0], face[1])
-            && isGreater(vertices, face[0], face[2])
-            && isGreater(vertices, face[3], face[1])
-            && isGreater(vertices, face[3], face[2])) {
+    if (isGreater(vertices, face[0], face[1]) && isGreater(vertices, face[0], face[2]) &&
+        isGreater(vertices, face[3], face[1]) && isGreater(vertices, face[3], face[2])) {
         return true;
     }
 
-    if (isGreater(vertices, face[1], face[0])
-            && isGreater(vertices, face[2], face[0])
-            && isGreater(vertices, face[1], face[3])
-            && isGreater(vertices, face[2], face[3])) {
+    if (isGreater(vertices, face[1], face[0]) && isGreater(vertices, face[2], face[0]) &&
+        isGreater(vertices, face[1], face[3]) && isGreater(vertices, face[2], face[3])) {
         return true;
     }
     return false;
