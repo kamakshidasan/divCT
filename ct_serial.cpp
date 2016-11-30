@@ -358,13 +358,13 @@ bool isFaceCP(int v, int axis, int dimx, int dimy, int dimz, int x, int y,
 
     Both diagonally opposite points on the plane are maxima
 
-    |2|<----------|3|
-     ^             |
+    |2|---------->|3|
+     |             ^
      |             |
      |             |
      |             |
-     |             v
-    |0|---------> |1|
+     v             |
+    |0|<--------- |1|
 
     */
     if (isGreater(vertices, face[0], face[1]) && isGreater(vertices, face[0], face[2]) &&
@@ -375,13 +375,13 @@ bool isFaceCP(int v, int axis, int dimx, int dimy, int dimz, int x, int y,
 
     Both diagonally opposite points on the plane are minima
 
-    |2|---------->|3|
-     |             ^
+    |2|<----------|3|
+     ^             |
      |             |
      |             |
      |             |
-     v             |
-    |0|<--------- |1|
+     |             v
+    |0|---------> |1|
 
     */
 
