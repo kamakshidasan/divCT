@@ -211,27 +211,37 @@ bool isBodyCP(int v, int dimx, int dimy, int dimz, int x, int y, int z,
     bool mx[8];
     bool mn[8];
 
+    // Make sure that the point does not lie on the boundary
+    // Otherwise, you wouldn't be able to +1 or +dimx or +dimxy with confidence!
     if (x == dimx - 1 || y == dimy - 1 || z == dimz - 1) {
         return false;
     }
-    int body[8];
-    body[0] = v;
-    body[1] = v + 1;
-    body[2] = v + dimx;
-    body[3] = body[2] + 1;
 
-    body[4] = v + dimxy;
-    body[5] = body[4] + 1;
-    body[6] = body[4] + dimx;
-    body[7] = body[6] + 1;
+    int body[8];
+
+    body[0] = v;                // (x,y,z)
+    body[1] = v + 1;            // (x+1,y,z)
+    body[2] = v + dimx;         // (x,y+1,z)
+    body[3] = body[2] + 1;      // (x+1,y+1,z)
+
+    body[4] = v + dimxy;        // (x,y,z+1)
+    body[5] = body[4] + 1;      // (x+1,y,z+1)
+    body[6] = body[4] + dimx;   // (x,y+1,z+1)
+    body[7] = body[6] + 1;      // (x+1,y+1,z+1)
 
     int noMax = 0;
     int noMin = 0;
+
+    // Iterate over the 8 vertices in the cube
     for (int i = 0; i < 8; i++) {
+
+        // Intialize all variables
         int mxct = 0;
         int mnct = 0;
         mx[i] = false;
         mn[i] = false;
+
+        // Go through the all 3 vertices adjacent to the vertex
         for (int j = 0; j < 3; j++) {
             int adj = bodyAdj[i * 3 + j];
             if (isGreater(vertices, body[i], body[adj])) {
@@ -240,25 +250,38 @@ bool isBodyCP(int v, int dimx, int dimy, int dimz, int x, int y, int z,
                 mnct++;
             }
         }
+
+        // If all 3 vertices adjacent to it are lesser in value
         if (mxct == 3) {
             //max
             noMax++;
             mx[i] = true;
         }
+
+        // If all 3 vertices adjacent to it are greater in value
         if (mnct == 3) {
             noMin++;
             mn[i] = true;
         }
     }
+
+    // Dear comment reader, look at Figure 7 of  V.  Pascucci  and  K.  Cole-McLaughlin
+    // "Parallel  computation  of  the topology of level sets", Algorithmica, vol. 38, no. 1, pp. 249–268, 2003
+
+    // Figure 7(d)
     if (noMax == 4 || noMin == 4) {
+        // Ask the real Aditya: According to the diagram, such a configuration has only one body saddle
         // TODO There are two body saddles. for now ignoring.
         return false;
     }
+
+    // Figures 7(a), 7(c) have 0 body saddle(s)
     if (!(noMax == 2 && noMin == 1 || noMax == 1 && noMin == 2)) {
         // no body saddle.
         return false;
     }
 
+    // Figure 7(b)(ii) has 1 body saddle and Figure 7(b)(i) has 0 body saddle(s)
     if (noMax == 2) {
         if (mx[0] && mx[7]) {
             return true;
@@ -273,6 +296,8 @@ bool isBodyCP(int v, int dimx, int dimy, int dimz, int x, int y, int z,
             return true;
         }
     }
+
+    // Reverse of Figure 7(b)(ii)
     if (noMin == 2) {
         if (mn[0] && mn[7]) {
             return true;
@@ -287,12 +312,16 @@ bool isBodyCP(int v, int dimx, int dimy, int dimz, int x, int y, int z,
             return true;
         }
     }
+
     return false;
 }
 
 bool isFaceCP(int v, int axis, int dimx, int dimy, int dimz, int x, int y,
         int z, int dimxy, int nv, float * vertices) {
     int face[4];
+
+    // Make sure that there exists a diagnally opposite point
+    // with higher coordinates on the same plane
     if (axis == XY && (x == dimx - 1 || y == dimy - 1)) {
         return false;
     }
@@ -323,10 +352,38 @@ bool isFaceCP(int v, int axis, int dimx, int dimy, int dimz, int x, int y,
         face[3] = face[2] + dimx;   // (x,y+1,z+1)
     }
 
+    // Origin of arrow indicates which side is greater
+
+    /*
+
+    Both diagonally opposite points on the plane are maxima
+
+    |2|<----------|3|
+     ^             |
+     |             |
+     |             |
+     |             |
+     |             v
+    |0|---------> |1|
+
+    */
     if (isGreater(vertices, face[0], face[1]) && isGreater(vertices, face[0], face[2]) &&
         isGreater(vertices, face[3], face[1]) && isGreater(vertices, face[3], face[2])) {
         return true;
     }
+    /*
+
+    Both diagonally opposite points on the plane are minima
+
+    |2|---------->|3|
+     |             ^
+     |             |
+     |             |
+     |             |
+     v             |
+    |0|<--------- |1|
+
+    */
 
     if (isGreater(vertices, face[1], face[0]) && isGreater(vertices, face[2], face[0]) &&
         isGreater(vertices, face[1], face[3]) && isGreater(vertices, face[2], face[3])) {
