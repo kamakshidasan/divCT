@@ -36,6 +36,21 @@ int sub_sizex = 128; //subcube size
 int sub_sizey = 128;
 int sub_sizez = 128;
 
+int F000 = 0;
+int F001 = 4;
+int F010 = 2;
+int F011 = 6;
+int F100 = 1;
+int F101 = 5;
+int F110 = 3;
+int F111 = 7;
+
+int XY = 1;     //00001
+int YZ = 2;     //00010
+int XZ = 4;     //00100
+int XYZ = 8;    //01000
+int XYZ2 = 16;  //10000
+
 int global_dimx = divx*sub_sizex;
 int global_dimy = divy*sub_sizey;
 int global_dimz = divz*sub_sizez;
@@ -86,6 +101,37 @@ long mtime, seconds, useconds;
 long cpTime, cleanuptime, initSetupTime, initParTime, rootTime, sortTime, initHeapTime,
 buildHeapTime, joinTime, splitTime, completeTime, ctTime,
 serialtreeTime;
+
+
+// The convention followed for representing neighbors
+// If p has coordinates (x,y,z)
+// 0 : (x-1,y,z) 1 : (x+1,y,z)
+// 2 : (x,y-1,z) 3 : (x,y+1,z)
+// 4 : (x,y,z-1) 5 : (x,y,z+1)
+
+// Neighbors adjacent to each of the six vertices around a vertex
+int neighbors[] = { 2, 3, 4, 5, // 0
+                    2, 3, 4, 5, // 1
+                    0, 1, 4, 5, // 2
+                    0, 1, 4, 5, // 3
+                    0, 1, 2, 3, // 4
+                    0, 1, 2, 3  // 5
+                  };
+
+// The convention followed for representing vertices of a cube
+// 0 : (0,0,0)  1 : (1,0,0)  2 : (0,1,0)  3 : (1,1,0)
+// 4 : (0,0,1)  5 : (1,0,1)  6 : (0,1,1)  7 : (1,1,1)
+
+// Adjacency List for each of the eight vertices in a cube
+int bodyAdj[] = {   1, 2, 4, // 0
+                    0, 3, 5, // 1
+                    0, 3, 6, // 2
+                    1, 2, 7, // 3
+                    0, 5, 6, // 4
+                    1, 4, 7, // 5
+                    2, 4, 7, // 6
+                    3, 5, 6  // 7
+                };
 
 struct Elems {
     int parent;
@@ -160,51 +206,6 @@ bool vertex_compare(float* vertices, int i, int j) {
 bool isGreater(float * vertices, int v1, int v2) {
     return !vertex_compare(vertices, v1, v2);
 }
-
-int F000 = 0;
-int F001 = 4;
-int F010 = 2;
-int F011 = 6;
-int F100 = 1;
-int F101 = 5;
-int F110 = 3;
-int F111 = 7;
-
-int XY = 1;     //00001
-int YZ = 2;     //00010
-int XZ = 4;     //00100
-int XYZ = 8;    //01000
-int XYZ2 = 16;  //10000
-
-// The convention followed for representing neighbors
-// If p has coordinates (x,y,z)
-// 0 : (x-1,y,z) 1 : (x+1,y,z)
-// 2 : (x,y-1,z) 3 : (x,y+1,z)
-// 4 : (x,y,z-1) 5 : (x,y,z+1)
-
-// Neighbors adjacent to each of the six vertices around a vertex
-int neighbors[] = { 2, 3, 4, 5, // 0
-                    2, 3, 4, 5, // 1
-                    0, 1, 4, 5, // 2
-                    0, 1, 4, 5, // 3
-                    0, 1, 2, 3, // 4
-                    0, 1, 2, 3  // 5
-                  };
-
-// The convention followed for representing vertices of a cube
-// 0 : (0,0,0)  1 : (1,0,0)  2 : (0,1,0)  3 : (1,1,0)
-// 4 : (0,0,1)  5 : (1,0,1)  6 : (0,1,1)  7 : (1,1,1)
-
-// Adjacency List for each of the eight vertices in a cube
-int bodyAdj[] = {   1, 2, 4, // 0
-                    0, 3, 5, // 1
-                    0, 3, 6, // 2
-                    1, 2, 7, // 3
-                    0, 5, 6, // 4
-                    1, 4, 7, // 5
-                    2, 4, 7, // 6
-                    3, 5, 6  // 7
-                };
 
 bool isBodyCP(int v, int dimx, int dimy, int dimz, int x, int y, int z,
         int dimxy, int nv, float * vertices) {
@@ -627,6 +628,9 @@ void classifyCriticalPoints() {
             bfType[v] |= XYZ;
         }
 
+        cout << bfType[v] << endl;
+
+        // store indice if they are ascending/descending
         for (int i = 0; i < 6; i++) {
             if (done[i] == 1) {
                 steep_desc[v] = verts[i];
@@ -651,6 +655,8 @@ void classifyCriticalPoints() {
 
 void updateFaceCP(int vIndex, int v, int axis, int dimx, int dimy, int dimz, int x, int y, int z, int dimxy, int nv, float * vertices, float * function_values, int* lower_roots, int* upper_roots, int* lower_root_count, int* upper_root_count, int* vertex_pos, char* offset) {
     int face[4];
+
+    // Make sure that the point do not lie on the boundary of the plane
     if (axis == FS_XY && (x == dimx - 1 || y == dimy - 1)) {
         return;
     }
@@ -665,76 +671,170 @@ void updateFaceCP(int vIndex, int v, int axis, int dimx, int dimy, int dimz, int
 
     face[0] = v;
     if (axis == FS_XY) {
-        face[1] = v + 1;
-        face[2] = v + dimx;
-        face[3] = face[2] + 1;
+        face[1] = v + 1;            // (x+1,y,z)
+        face[2] = v + dimx;         // (x,y+1,z)
+        face[3] = face[2] + 1;      // (x+1,y+1,z)
     }
     if (axis == FS_XZ) {
-        face[1] = v + 1;
-        face[2] = v + dimxy;
-        face[3] = face[2] + 1;
+        face[1] = v + 1;            // (x+1,y,z)
+        face[2] = v + dimxy;        // (x,y,z+1)
+        face[3] = face[2] + 1;      // (x+1,y,z+1)
     }
 
     if (axis == FS_YZ) {
-        face[1] = v + dimx;
-        face[2] = v + dimxy;
-        face[3] = face[2] + dimx;
+        face[1] = v + dimx;         // (x,y+1,z)
+        face[2] = v + dimxy;        // (x,y,z+1)
+        face[3] = face[2] + dimx;   // (x,y+1,z+1)
     }
 
-    if (isGreater(vertices, face[0], face[1]) && isGreater(vertices, face[0], face[2]) && isGreater(vertices, face[3], face[1]) && isGreater(vertices, face[3], face[2])) {
+    /*
+
+    Both diagonally opposite points on the plane are maxima
+
+    |2|---------->|3|
+     |             ^
+     |             |
+     |             |
+     |             |
+     v             |
+    |0|<--------- |1|
+
+    */
+
+    if (isGreater(vertices, face[0], face[1]) && isGreater(vertices, face[0], face[2]) &&
+        isGreater(vertices, face[3], face[1]) && isGreater(vertices, face[3], face[2])) {
+
         lower_root_count[vIndex] = 2;
         upper_root_count[vIndex] = 2;
+
+        // Obviously, 1 and 2 are lower roots!
         lower_roots[vIndex * MAX_ADJ + 0] = face[1];
         lower_roots[vIndex * MAX_ADJ + 1] = face[2];
+
+        // Obviously, 0 and 3 are upper roots!
         upper_roots[vIndex * MAX_ADJ + 0] = face[0];
         upper_roots[vIndex * MAX_ADJ + 1] = face[3];
 
+        // Update the vertex position to the greater of the 2 maximas!
         if (isGreater(vertices, face[1], face[2])) {
             vertex_pos[vIndex] = face[1];
-        } else {
+        }
+        else {
             vertex_pos[vIndex] = face[2];
         }
         offset[vIndex] = 1;
     }
 
-    if (isGreater(vertices, face[1], face[0]) && isGreater(vertices, face[2], face[0]) && isGreater(vertices, face[1], face[3]) && isGreater(vertices, face[2], face[3])) {
+    /*
+
+    Both diagonally opposite points on the plane are minima
+
+    |2|<----------|3|
+     ^             |
+     |             |
+     |             |
+     |             |
+     |             v
+    |0|---------> |1|
+
+    */
+
+    if (isGreater(vertices, face[1], face[0]) && isGreater(vertices, face[2], face[0]) &&
+        isGreater(vertices, face[1], face[3]) && isGreater(vertices, face[2], face[3])) {
+
         lower_root_count[vIndex] = 2;
         upper_root_count[vIndex] = 2;
+
+        // Obviously, 0 and 3 are lower roots!
         lower_roots[vIndex * MAX_ADJ + 0] = face[0];
         lower_roots[vIndex * MAX_ADJ + 1] = face[3];
+
+        // Obviously, 1 and 2 are upper roots!
         upper_roots[vIndex * MAX_ADJ + 0] = face[1];
         upper_roots[vIndex * MAX_ADJ + 1] = face[2];
 
+        // Update the vertex position to the greater of the 2 minimas!
         if (isGreater(vertices, face[0], face[3])) {
             vertex_pos[vIndex] = face[0];
-        } else {
+        }
+        else {
             vertex_pos[vIndex] = face[3];
         }
         offset[vIndex] = 1;
     }
 
     {
+
+        // Okay, now you know the function values at all the four corners!
+        // Now it should be essential to find the coordinates of the saddle using the function values
+        // and then use the coordinates to find out the function value at the saddle!
+
+        /*
+
+                    2    B (x,1)      3
+
+                    +----+------------+
+                    |    |            |
+                    |    | S (x,y)    |
+                    |    |            |
+            C (0,y) +-----------------+ D (1,y)
+                    |    |            |
+                    |    |            |
+                    |    |            |
+                    +----+------------+
+
+                    0    A (x,0)      1
+
+        f(A) = f(0) (1-x) + f(1) (x) = f(0) + x(f(1) - f(0))
+        f(B) = f(2) (1-x) + f(3) (x) = f(2) + x(f(3) - f(2))
+
+        f(S) = f(A) (1-y) + f(B) (y) = f(A) + y(f(B) - f(A))
+             = axy + bx + cy + d
+
+        Then, solving for the coefficients
+
+        a = f(0) + f(3) - f(1) - f(2)
+        b = f(1) - f(0)
+        c = f(2) - f(0)
+        d = f(0)
+
+        By taking the partial derivatives of axy + bx + cy + d, we get (ay+b), (ax+c)
+        Now, by equating those to 0, we get the coordinates of the saddle point which are,
+        x = -c/a and y = -b/a
+
+        */
         float corners[4];
+
+        // Store the function values in corners
         for (int i = 0; i < 4; i++) {
             corners[i] = vertices[face[i]];
         }
+
         float a = corners[0] + corners[3] - corners[1] - corners[2];
+
         if (a == 0) {
+            // Just use the value of d here!
             function_values[vIndex] = corners[0];
             return;
         }
+
         float c = corners[2] - corners[0];
         float x = -c / a;
+
         if (x > 1 || x < 0) {
             function_values[vIndex] = corners[0];
             return;
         }
+
         float b = corners[1] - corners[0];
         float y = -b / a;
+
         if (y > 1 || y < 0) {
             function_values[vIndex] = corners[0];
             return;
         }
+
+        // Use the equation of the bilinear equation!
         function_values[vIndex] = a * x * y + b * x + c * y + corners[0];
     }
 }
@@ -996,8 +1096,9 @@ void fillCriticalPoints() {
         //printf("\nnumcritical:%d, %d\n",cp,num_critical);
         lower_root_count[cp] = 0;
         upper_root_count[cp] = 0;
+
+        // If the critical point is a maximum/minimum/boundary saddle
         if (v < num_vert) {
-            // vertex critical
             vertex_pos[cp] = v;
             offset[cp] = 0;
             function_values[cp] = vertices[v];
@@ -1080,6 +1181,7 @@ void fillCriticalPoints() {
                     }
                 }
             }
+
             // count upper link components
             for (int i = 0; i < 6; i++) {
                 // is valid vertex
@@ -1116,24 +1218,30 @@ void fillCriticalPoints() {
 
             lower_root_count[cp] = lowerLinkCt;
             upper_root_count[cp] = upperLinkCt;
-            // get the vertex from each component so that one can traverse
+
+            // Get the vertex from each component so that one can traverse
             for (int i = 0; i < 6; i++) {
+                // Store the lower link component!
                 if (done[i] == 1) {
                     lower_roots[cp * MAX_ADJ + 0] = verts[i];
                 }
+                // If there is a second lower link component, then it should be stored!
                 if (done[i] == 2) {
                     lower_roots[cp * MAX_ADJ + 1] = verts[i];
                 }
+                // Store the upper link component!
                 if (done[i] == 3) {
                     upper_roots[cp * MAX_ADJ + 0] = verts[i];
                 }
+                // If there is a second upper link component, then it should be stored!
                 if (done[i] == 4) {
                     upper_roots[cp * MAX_ADJ + 1] = verts[i];
                 }
             }
-        } else {
-            // its a body or face saddle
+        }
 
+        // its a body or face saddle
+        else {
             for (int i = 1; i <= 3; i++) {
                 v -= num_vert;
                 if ((v < num_vert)&&(v >= 0)) {
@@ -1149,6 +1257,7 @@ void fillCriticalPoints() {
                     //continue;
                 }
             }
+
             // body saddle
             v -= num_vert;
 
@@ -1223,22 +1332,29 @@ void find_roots() {
 void initarray() {
     function_values = new float[num_critical];
     vertex_index = new int[num_critical];
+
     join_neigh = new int[num_critical];
     join_children = new int[2 * num_critical];
+
     split_neigh = new int[num_critical];
     split_children = new int[2 * num_critical];
+
     vertex_pos = new int[num_critical];
     offset = new char[num_critical];
+
     lower_root_count = new int[num_critical];
     upper_root_count = new int[num_critical];
+
     lower_roots = new int[num_critical * MAX_ADJ];
     upper_roots = new int[num_critical * MAX_ADJ];
 
     for (int i = 0; i < num_critical; i++) {
         join_neigh[i] = -1;
         split_neigh[i] = -1;
+
         join_children[2 * i] = -1;
         join_children[2 * i + 1] = -1;
+
         split_children[2 * i] = -1;
         split_children[2 * i + 1] = -1;
         //is_processed[i] = 0;
@@ -1283,28 +1399,35 @@ void initializeDataStructures() {
             critical_points[cpNo] = i;
             extrema_map[i] = cpNo;
             cpNo++;
-        } else if (type[i] == MAXIMUM) {
+        }
+        else if (type[i] == MAXIMUM) {
             num_maxima++;
             leaves[leavesCt++] = cpNo;
             critical_points[cpNo] = i;
             extrema_map[i] = cpNo;
             cpNo++;
-        } else if (type[i] == SADDLE) {
+        }
+        // This takes Boundary saddles into consideration
+        else if (type[i] == SADDLE) {
             num_saddle++;
             critical_points[cpNo] = i;
             extrema_map[i] = cpNo;
             cpNo++;
         }
+        // There is a face saddle on the XY plane
         if ((bfType[i] & XY) != 0) {
             num_saddle++;
+            // Adhitya: I have absolutely no clue why this is stored in such a way
             critical_points[cpNo] = (i + xyIndex);
             cpNo++;
         }
+        // There is a face saddle on the YZ plane
         if ((bfType[i] & YZ) != 0) {
             num_saddle++;
             critical_points[cpNo] = (i + yzIndex);
             cpNo++;
         }
+        // There is a face saddle on the XZ place
         if ((bfType[i] & XZ) != 0) {
             num_saddle++;
             critical_points[cpNo] = (i + xzIndex);
@@ -1334,7 +1457,7 @@ void initializeDataStructures() {
     gettimeofday(&end1, NULL);
     timeval_subtract(&result, &end1, &start1);
     mtime = ((result.tv_sec) * 1000 + result.tv_usec / 1000.0) + 0.5;
-    //	printf("Time to initialize data structures: %ld milliseconds\n", mtime);
+    printf("Time to initialize data structures: %ld milliseconds\n", mtime);
     initParTime = mtime;
 }
 
