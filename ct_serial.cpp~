@@ -900,7 +900,6 @@ void updateBodyCP(int vIndex, int v, int dimx, int dimy, int dimz, int x, int y,
         if (mxct == 3) {
             noMax++;
             mx[i] = true;
-            // Adhitya: Is this correct? What happens when noMax is 2?
             if (noMax == 1 || isGreater(vertices, lowMax, body[i])) {
                 lowMax = body[i];
             }
@@ -952,7 +951,7 @@ void updateBodyCP(int vIndex, int v, int dimx, int dimy, int dimz, int x, int y,
 
         int min = 0;
 
-        // Find the lowest amongst all roots
+        // Find the lowest amongst all lower roots
         for (int i = 1; i < 8; i++) {
             if (isGreater(vertices, body[min], body[i])) {
                 min = i;
@@ -983,8 +982,6 @@ void updateBodyCP(int vIndex, int v, int dimx, int dimy, int dimz, int x, int y,
             lower_roots[vIndex1 * MAX_ADJ + 0] = body[3];
             lower_roots[vIndex1 * MAX_ADJ + 1] = body[4];
         }
-
-        // Find the greatest amongst all roots
         int max = 0;
         for (int i = 1; i < 8; i++) {
             if (isGreater(vertices, body[i], body[max])) {
@@ -998,52 +995,6 @@ void updateBodyCP(int vIndex, int v, int dimx, int dimy, int dimz, int x, int y,
     }
 
     {
-
-    /*
-
-                      6 (0,1,1)      F         7 (1,1,1)
-                       ________________________
-                     /|             /         /|
-                    / |            /         / |
-                   /  |           /         /  |
-                  /   |          /         /   |
-               G /--------------/---------/    |
-                /     |        / Q       /H    |
-               /      |       /         /      |
-              /       |      /         /       |
-    4 (0,0,1)/________|_____/_________/ 5      |
-             |        |     E         | (1,0,1)|
-             |        |               |        |
-             |        |__________B____|________| 3 (1,1,0)
-             |       /             /  |       /
-             |      / 2 (0,1,0)   /   |      /
-             |     /             /    |     /
-             |   C/-------------/-----|----/D
-             |   /             / P    |   /
-             |  /             /       |  /
-             | /             /        | /
-             |/_____________/_________|/
-                         A
-             0 (0,0,0)                1 (1,0,0)
-
-
-        f(A) = f(0) (1-x) + f(1) (x)
-        f(B) = f(2) (1-x) + f(3) (x)
-        f(E) = f(4) (1-x) + f(5) (x)
-        f(F) = f(6) (1-x) + f(7) (x)
-
-        f(P) = f(A) (1-y) + f(B) (y)
-        f(Q) = f(E) (1-y) + f(F) (y)
-
-        f(S) = f(P) (1-z) + f(Q) (z)
-
-        The Trilinear Interpolant equation is,
-
-        f(x,y,z) = axyz + bxy + cxz + dyz + ex + fy + gz + h
-
-        You may want to solve for the coefficients by yourself.
-
-    */
 
         float corners[8];
 
@@ -1063,35 +1014,48 @@ void updateBodyCP(int vIndex, int v, int dimx, int dimy, int dimz, int x, int y,
 
         if (noMax == 2) {
             function_values[vIndex] = vertices[highMin];
-        }
-        else {
+        } else {
             function_values[vIndex] = vertices[lowMax];
         }
-
         if (a == 0) {
             if (b == 0 || c == 0 || d == 0) {
-                vertex_pos[vIndex] = getIndx(vertices, function_values[vIndex1], lowMax, highMin);
+                vertex_pos[vIndex] =
+                        getIndx(vertices, function_values[vIndex1], lowMax,
+                        highMin
+                        );
                 return;
             }
             float x = (e * c - d * f - b * g) / (2 * b * d);
             if (x < 0 || x > 1) {
-                vertex_pos[vIndex] = getIndx(vertices, function_values[vIndex1], lowMax, highMin);
+                vertex_pos[vIndex] =
+                        getIndx(vertices, function_values[vIndex1], lowMax,
+                        highMin
+                        );
                 return;
             }
             float y = (-e * c + d * f - b * g) / (2 * b * c);
             if (y < 0 || y > 1) {
-                vertex_pos[vIndex] = getIndx(vertices, function_values[vIndex1], lowMax, highMin);
+                vertex_pos[vIndex] =
+                        getIndx(vertices, function_values[vIndex1], lowMax,
+                        highMin
+                        );
                 return;
             }
             float z = (-e * c - d * f + b * g) / (2 * c * d);
             if (z < 0 || z > 1) {
-                vertex_pos[vIndex] = getIndx(vertices, function_values[vIndex1], lowMax, highMin);
+                vertex_pos[vIndex] =
+                        getIndx(vertices, function_values[vIndex1], lowMax,
+                        highMin
+                        );
                 return;
             }
-            function_values[vIndex1] = a * x * y * z + b * x * y + c * y * z + d * z * x + e * x + f * y + g * z + h;
-            vertex_pos[vIndex] = getIndx(vertices, function_values[vIndex1], lowMax, highMin);
-        }
-        else {
+            function_values[vIndex1] = a * x * y * z + b * x * y + c * y * z
+                    + d * z * x + e * x + f * y + g * z + h;
+            vertex_pos[vIndex] =
+                    getIndx(vertices, function_values[vIndex1], lowMax,
+                    highMin
+                    );
+        } else {
             if ((a * e - b * d) == 0) {
                 vertex_pos[vIndex] = getIndx(vertices, function_values[vIndex1], lowMax, highMin);
                 return;
