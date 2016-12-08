@@ -3,7 +3,6 @@ obj/
 Data/
 *.cpp~
 *.dat
-
 *.cbp
 *.depend
 *.layout

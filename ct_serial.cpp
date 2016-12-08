@@ -1043,6 +1043,13 @@ void updateBodyCP(int vIndex, int v, int dimx, int dimy, int dimz, int x, int y,
 
         You may want to solve for the coefficients by yourself.
 
+        For a better understanding, read the subtopic titled "Trilinear Interpolant on a Parallelopiped"
+        V.  Pascucci  and  K.  Cole-McLaughlin, "Parallel  computation  of  the topology of level sets"
+
+        The only small difference is that, our coder decided to divide r by (bc - ae) instead of multiplying it
+        And then he used that to find x. And then he applied that formula of x to find y and z.
+
+        Do not worry, the formulas are correct. Adhitya spent the entire day of 8-12-2016 in finding this fact.
     */
 
         float corners[8];
@@ -1054,12 +1061,12 @@ void updateBodyCP(int vIndex, int v, int dimx, int dimy, int dimz, int x, int y,
         float a = -corners[F000] + corners[F001] + corners[F010] - corners[F011]
                 + corners[F100] - corners[F101] - corners[F110] + corners[F111];
         float b = corners[F000] - corners[F010] - corners[F100] + corners[F110];
-        float c = corners[F000] - corners[F001] - corners[F010] + corners[F011];
-        float d = corners[F000] - corners[F001] - corners[F100] + corners[F101];
+        float c = corners[F000] - corners[F001] - corners[F100] + corners[F101];
+        float d = corners[F000] - corners[F001] - corners[F010] + corners[F011];
         float e = -corners[F000] + corners[F100];
-        float f = -corners[F000] + corners[F010];
-        float g = -corners[F000] + corners[F001];
-        float h = corners[F000];
+        float g = -corners[F000] + corners[F010];
+        float h = -corners[F000] + corners[F001];
+        float k = corners[F000];
 
         if (noMax == 2) {
             function_values[vIndex] = vertices[highMin];
@@ -1069,74 +1076,74 @@ void updateBodyCP(int vIndex, int v, int dimx, int dimy, int dimz, int x, int y,
         }
 
         if (a == 0) {
-            if (b == 0 || c == 0 || d == 0) {
+            if (b == 0 || c == 0 || d == 0 ) {
                 vertex_pos[vIndex] = getIndx(vertices, function_values[vIndex1], lowMax, highMin);
                 return;
             }
-            float x = (e * c - d * f - b * g) / (2 * b * d);
+            float x = (d * e - c * g - b * h) / (2 * b * c);
             if (x < 0 || x > 1) {
                 vertex_pos[vIndex] = getIndx(vertices, function_values[vIndex1], lowMax, highMin);
                 return;
             }
-            float y = (-e * c + d * f - b * g) / (2 * b * c);
+            float y = (-d * e + c * g - b * h) / (2 * b * d);
             if (y < 0 || y > 1) {
                 vertex_pos[vIndex] = getIndx(vertices, function_values[vIndex1], lowMax, highMin);
                 return;
             }
-            float z = (-e * c - d * f + b * g) / (2 * c * d);
+            float z = (-d * e - c * g + b * h) / (2 * c * d);
             if (z < 0 || z > 1) {
                 vertex_pos[vIndex] = getIndx(vertices, function_values[vIndex1], lowMax, highMin);
                 return;
             }
-            function_values[vIndex1] = a * x * y * z + b * x * y + c * y * z + d * z * x + e * x + f * y + g * z + h;
+            function_values[vIndex1] = a * x * y * z + b * x * y  + c * x * z + d * y * z + e * x + g * y + h * z + k;
             vertex_pos[vIndex] = getIndx(vertices, function_values[vIndex1], lowMax, highMin);
         }
         else {
-            if ((a * e - b * d) == 0) {
+            if ((a * e - b * c) == 0) {
                 vertex_pos[vIndex] = getIndx(vertices, function_values[vIndex1], lowMax, highMin);
                 return;
             }
             bool ret1 = true;
             bool ret2 = true;
-            float r = (b * c - a * f) * (a * g - c * d) / (a * e - b * d);
+            float r = (b * d - a * g) * (c * d - a * h) / (b * c - a * e);
             if (r < 0) {
                 vertex_pos[vIndex] = getIndx(vertices, function_values[vIndex1], lowMax, highMin);
                 return;
             }
 
             r = (float) sqrt(r);
-            float x = (-c + r) / a;
+            float x = (-d + r) / a;
             if (x < 0 || x > 1) {
                 ret1 = false;
             }
-            float y = -(d * x + g) / (a * x + c);
-            if (y > 1 || y < 0 || (a * x + c) == 0) {
+            float y = -(c * x + h) / (a * x + d);
+            if (y > 1 || y < 0 || (a * x + d) == 0) {
                 ret1 = false;
             }
-            float z = -(b * x + f) / (a * x + c);
-            if (z > 1 || z < 0 || (a * x + c) == 0) {
+            float z = -(b * x + g) / (a * x + d);
+            if (z > 1 || z < 0 || (a * x + d) == 0) {
                 ret1 = false;
             }
             if (ret1 != false) {
-                function_values[vIndex1] = a * x * y * z + b * x * y + c * y * z + d * z * x + e * x + f * y + g * z + h;
+                function_values[vIndex1] = a * x * y * z + b * x * y + c * x * z + d * y * z + e * x + g * y + h * z + k;
                 vertex_pos[vIndex] = getIndx(vertices, function_values[vIndex1], lowMax, highMin);
                 return;
             }
 
-            x = (-c - r) / a;
+            x = (-d - r) / a;
             if (x < 0 || x > 1) {
                 ret2 = false;
             }
-            y = -(d * x + g) / (a * x + c);
-            if (y > 1 || y < 0 || (a * x + c) == 0) {
+            y = -(c * x + h) / (a * x + d);
+            if (y > 1 || y < 0 || (a * x + d) == 0) {
                 ret2 = false;
             }
-            z = -(b * x + f) / (a * x + c);
-            if (z > 1 || z < 0 || (a * x + c) == 0) {
+            z = -(b * x + g) / (a * x + d);
+            if (z > 1 || z < 0 || (a * x + d) == 0) {
                 ret2 = false;
             }
             if (ret2 != false) {
-                function_values[vIndex1] = a * x * y * z + b * x * y + c * y * z + d * z * x + e * x + f * y + g * z + h;
+                function_values[vIndex1] = a * x * y * z + b * x * y + c * x * z + d * y * z + e * x + g * y + h * z + k;
                 vertex_pos[vIndex] = getIndx(vertices, function_values[vIndex1], lowMax, highMin);
                 return;
             }
