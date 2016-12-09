@@ -837,9 +837,10 @@ void updateFaceCP(int vIndex, int v, int axis, int dimx, int dimy, int dimz, int
     }
 }
 
-int getIndx(float* vertices, float fsad, int lowMax, int highMin) {
+int getIndx(float* vertices, float current, int lowMax, int highMin) {
+    // The face saddle will have the boundaries of [lowMax,highMin]
     float fmax = vertices[lowMax];
-    if (fsad == fmax) {
+    if (current == fmax) {
         return lowMax - 1;
     }
     return highMin;
@@ -876,7 +877,12 @@ void updateBodyCP(int vIndex, int v, int dimx, int dimy, int dimz, int x, int y,
 
     int noMax = 0;
     int noMin = 0;
-    int highMin, lowMax;
+
+    // Highest amongst all minimas
+    int highMin;
+
+    // Lowest amongst all maximas
+    int lowMax;
 
     // Iterate over the 8 vertices in the cube
     for (int i = 0; i < 8; i++) {
@@ -900,8 +906,9 @@ void updateBodyCP(int vIndex, int v, int dimx, int dimy, int dimz, int x, int y,
         if (mxct == 3) {
             noMax++;
             mx[i] = true;
-            // Adhitya: Is this correct? What happens when noMax is 2?
+            // Adhitya: Is this correct? What happens when noMax is 2? -- Yes! It is OR!
             if (noMax == 1 || isGreater(vertices, lowMax, body[i])) {
+                // Reduce the value of lowMax to current Maxima
                 lowMax = body[i];
             }
         }
@@ -911,6 +918,7 @@ void updateBodyCP(int vIndex, int v, int dimx, int dimy, int dimz, int x, int y,
             noMin++;
             mn[i] = true;
             if (noMin == 1 || vertex_compare(vertices, highMin, body[i])) {
+                // Increase the value of highMin to current Minima
                 highMin = body[i];
             }
         }
@@ -1075,11 +1083,14 @@ void updateBodyCP(int vIndex, int v, int dimx, int dimy, int dimz, int x, int y,
             function_values[vIndex] = vertices[lowMax];
         }
 
+        // Just check that the denominator does not hit the ceiling!
         if (a == 0) {
-            if (b == 0 || c == 0 || d == 0 ) {
+            if (b == 0 || c == 0 || d == 0) {
                 vertex_pos[vIndex] = getIndx(vertices, function_values[vIndex1], lowMax, highMin);
                 return;
             }
+            // Adhitya: I am just guessing that the limits were taken and they ended up with this formula!
+            // Adhitya: My guess could be wrong. Ask Vijay!
             float x = (d * e - c * g - b * h) / (2 * b * c);
             if (x < 0 || x > 1) {
                 vertex_pos[vIndex] = getIndx(vertices, function_values[vIndex1], lowMax, highMin);
@@ -1098,7 +1109,9 @@ void updateBodyCP(int vIndex, int v, int dimx, int dimy, int dimz, int x, int y,
             function_values[vIndex1] = a * x * y * z + b * x * y  + c * x * z + d * y * z + e * x + g * y + h * z + k;
             vertex_pos[vIndex] = getIndx(vertices, function_values[vIndex1], lowMax, highMin);
         }
+
         else {
+            // Again, just check the denominator of x
             if ((a * e - b * c) == 0) {
                 vertex_pos[vIndex] = getIndx(vertices, function_values[vIndex1], lowMax, highMin);
                 return;
@@ -1130,14 +1143,20 @@ void updateBodyCP(int vIndex, int v, int dimx, int dimy, int dimz, int x, int y,
                 return;
             }
 
+            // This comes from the paper itself - This can be derived
             x = (-d - r) / a;
             if (x < 0 || x > 1) {
                 ret2 = false;
             }
+
+            // Use the value of x for calculating y
+            // ax + d is equivalent to sqrt(r)
             y = -(c * x + h) / (a * x + d);
             if (y > 1 || y < 0 || (a * x + d) == 0) {
                 ret2 = false;
             }
+
+            // Use the value of x for calculating z
             z = -(b * x + g) / (a * x + d);
             if (z > 1 || z < 0 || (a * x + d) == 0) {
                 ret2 = false;
