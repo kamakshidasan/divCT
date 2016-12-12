@@ -1,5 +1,3 @@
-
-
 #ifndef PSORT_H_
 #define PSORT_H_
 #include <cstdio>
@@ -11,7 +9,7 @@
 #include "const.h"
 
 ////////////////////////////////////////////////////////////
-// Miscialenous functions
+// Miscellaneous functions
 ////////////////////////////////////////////////////////////
 
 /** Swap to value */
@@ -234,10 +232,5 @@ void mergesort(int a[], int size, int temp[], int threads) { //parallel merge so
 
         seqmerge(a,size,temp); //finally merge the children array by asinhgle thread
         }
-
-
-
-
-
 
 #endif

@@ -838,7 +838,7 @@ void updateFaceCP(int vIndex, int v, int axis, int dimx, int dimy, int dimz, int
 }
 
 int getIndx(float* vertices, float current, int lowMax, int highMin) {
-    // The face saddle will have the boundaries of [lowMax,highMin]
+    // The face saddle will have the boundaries of lowMax and highMin
     float fmax = vertices[lowMax];
     if (current == fmax) {
         return lowMax - 1;
@@ -1329,6 +1329,10 @@ void fillCriticalPoints() {
         // its a body or face saddle
         else {
             for (int i = 1; i <= 3; i++) {
+                // Adhitya: I feel that v is calculated wrongly. It should be v = v - (i * num_vert)
+                // Answer: No. In initializeDataStructures(), whenever there is a saddle we increment i by
+                // n * face and we keep overwriting it in critical_points[].
+                // Over here, we check it each time over each face, so all cases will be satisfied
                 v -= num_vert;
                 if ((v < num_vert)&&(v >= 0)) {
                     // face saddle with axis i;
@@ -1365,11 +1369,16 @@ void fillCriticalPoints() {
 
 int find_min_root(int i, int *steep_desc) {
     int k = i;
+
+    // steep_desc was initialised with the index values in classifyCriticalPoints()
+    // If the array contained the index value itself, then it was not processed at all
+    // This is loop condition is just a fancy way of writing an infinite loop :P
     while (k != steep_desc[k]) {
 
         k = steep_desc[k];
 
         //if (critical_points[k]>num_vert) break;
+        // The basic idea over here is that, keep on descending downwards till you hit a saddle
         if (type[k] == SADDLE) break;
     }
     return k;
@@ -1377,10 +1386,15 @@ int find_min_root(int i, int *steep_desc) {
 
 int find_max_root(int i, int *steep_asc) {
     int k = i;
+
+    // steep_asc was initialised with the index values in classifyCriticalPoints()
+    // If the array contained the index value itself, then it was not processed at all
+    // (I will not repeat my joke twice)
     while (k != steep_asc[k]) {
 
         k = steep_asc[k];
         //if (critical_points[k]>num_vert) break;
+        // The basic idea over here is that, keep on ascending upwards till you hit a saddle
         if (type[k] == SADDLE) break;
     }
     return k;
@@ -1391,15 +1405,20 @@ void find_roots() {
     for (int i = 0; i < num_critical; i++) {
         int c = i*MAX_ADJ;
         int c1 = c;
+        // Use one vertex of the lower roots - Remember if there are two components,
+        // you have *a* vertex from each of them
         for (int j = 0; j < lower_root_count[i]; j++) {
             //lower_roots[i*MAX_ADJ+j] = extrema_map[find_min_root(lower_roots[i*MAX_ADJ+j], steep_desc)];
             lower_roots[c] = find_min_root(lower_roots[c], steep_desc);
+            // find_min_root returns the minima
+            // We stored the critical point index of such extremas in extrema_map[] : initializeDataStructures()
             lower_roots[c] = extrema_map[lower_roots[c]];
             c++;
         }
         c = c1;
         for (int j = 0; j < upper_root_count[i]; j++) {
             // upper_roots[i*MAX_ADJ+j] = extrema_map[find_max_root(upper_roots[i*MAX_ADJ+j], steep_asc)];
+            // find_max_root returns the maxima
             upper_roots[c] = find_max_root(upper_roots[c], steep_asc);
             upper_roots[c] = extrema_map[upper_roots[c]];
             c++;
@@ -1452,6 +1471,10 @@ void sortVertices() {
     gettimeofday(&start1, NULL);
     svi = new int[num_critical];
     //	sort(vertex_index, vertex_index + num_critical, compare());
+
+    // vertex_index[i] = i - As simple as that for all num_critical
+    // num_critical = num_minima + num_maxima + num_saddle
+
     mergesort(vertex_index, num_critical, svi, num_cores);
     //QuickSortOmp(vertex_index, num_critical,15);
     delete[] vertex_index;
@@ -1503,7 +1526,9 @@ void initializeDataStructures() {
         // There is a face saddle on the XY plane
         if ((bfType[i] & XY) != 0) {
             num_saddle++;
-            // Adhitya: I have absolutely no clue why this is stored in such a way
+            // Adhitya: I have absolutely no clue why this array is stored in such a way
+            // Answer: Just so that v > num_vert, its easier to detect saddles in fillCriticalPoints()
+            // xyIndex = num_vert * FS_XY
             critical_points[cpNo] = (i + xyIndex);
             cpNo++;
         }
@@ -1825,7 +1850,6 @@ void printTimings() {
 int main(int argc, char **argv) {
     // Check if the required number of arguments are present
     if (argc != 7) {
-        //./serialct Data/Fuel/16/fo_1_33_33_17.raw 33 33 17 f1 1
         cout << "Usage: ./ct input_file dimx dimy dimz output_file_id subcube_no." << endl;
         //exit(1);
     }
@@ -1849,8 +1873,6 @@ int main(int argc, char **argv) {
     dimy = atoi(argv[3]);
     dimz = atoi(argv[4]);
 
-    // Adhitya: The below two lines are definitely not correct going by the error display
-    //num_cores = atoi(argv[5]);
     //int pid = atoi(argv[6]);
     int pid = 1;
 
@@ -1863,7 +1885,9 @@ int main(int argc, char **argv) {
     subcube = atoi(argv[6]) - 1;
 
     //global_dim = atoi(argv[6]);
-    //omp_set_num_threads(num_cores);
+
+    num_cores = atoi(argv[7]);
+    omp_set_num_threads(num_cores);
 
     // Computer number of vertices
     num_vert = dimx * dimy * dimz;
