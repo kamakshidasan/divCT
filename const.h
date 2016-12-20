@@ -27,10 +27,13 @@ bool lessVertex(int i, int j) {
 			return true;
 		}
 		if(vertex_pos[i] == vertex_pos[j]) {
+            // offset = 0 if critical point is a maximum/minimum/boundary saddle
+            // offset = 1 if critical point is face/body saddle
 			if(offset[i] < offset[j]) {
 				return true;
 			}
 			if(offset[i] == offset[j]) {
+                // if the offset are equal, then just check the indices
 				if(i < j) {
 					return true;
 				}

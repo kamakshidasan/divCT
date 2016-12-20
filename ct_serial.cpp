@@ -19,14 +19,8 @@
 #include <sched.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include "ContourTree.h"
 #include "const.h"
-#include "PairingQueue.h"
-#include "UnionFind.h"
 #include "PSort.h"
-#include "TriangleData.h"
-#include "ReadFile.h"
-#include "Graph.h"
 using namespace std;
 #define MAX_ADJ 2
 int divx = 2; //no. of divisions along x-axis
@@ -55,15 +49,10 @@ int global_dimx = divx*sub_sizex;
 int global_dimy = divy*sub_sizey;
 int global_dimz = divz*sub_sizez;
 
+
 struct Graph* CTGraph;
 char* offset_c;
 int subcube;
-
-struct extent {
-    int x[2];
-    int y[2];
-    int z[2];
-} ext;
 long long int* g_vp;
 int num_cores;
 int final;
@@ -102,6 +91,17 @@ long cpTime, cleanuptime, initSetupTime, initParTime, rootTime, sortTime, initHe
 buildHeapTime, joinTime, splitTime, completeTime, ctTime,
 serialtreeTime;
 
+struct extent {
+    int x[2];
+    int y[2];
+    int z[2];
+} ext;
+
+struct Elems {
+    int parent;
+    int rank;
+    int rep;
+};
 
 // The convention followed for representing neighbors
 // If p has coordinates (x,y,z)
@@ -133,47 +133,71 @@ int bodyAdj[] = {   1, 2, 4, // 0
                     3, 5, 6  // 7
                 };
 
-struct Elems {
-    int parent;
-    int rank;
-    int rep;
-};
-
+// Insert the element
 void ElemSet(struct Elems* elems, int i) {
     elems[i].parent = i;
     elems[i].rank = 0;
     elems[i].rep = i;
 }
 
+// Functions as advertised - Finds the parent
+// Additionally, it also updates the parent of the nodes involved
 int findit(struct Elems* elems, int i) {
-    if (elems[i].parent == i)
+    if (elems[i].parent == i){
         return i;
+    }
+
     int k = i;
+
+    // The node did not have it's parent as the same
+    // Traverse all such nodes and find the node which has it's parent as same as it
     while (elems[k].parent != k) {
         k = elems[k].parent;
     }
+
+    // Update the parent of entire traversal
     while (elems[i].parent != i) {
         int t = elems[i].parent;
         elems[i].parent = k;
         i = t;
     }
+
     return k;
 }
 
+// Given two nodes, unifies them - Updation of parents is done by findit()
+// Rank based parent updation between the two nodes are done here
+// Node with higher rank is returned
 int unify(struct Elems* elems, int x, int y) {
-    if (x == y)
+    if (x == y) {
         return x;
+    }
+
+    // Find the parent of x
     int x_root = findit(elems, x);
+
+    // Find the parent of y
     int y_root = findit(elems, y);
-    if (x_root == y_root)
+
+    // If both are equal then nothing to unify
+    if (x_root == y_root) {
         return x_root;
+    }
+
+    // If x has a higher rank, update the parent of y
     if (elems[x_root].rank > elems[y_root].rank) {
         elems[y_root].parent = x_root;
         return x_root;
-    } else if (elems[y_root].rank > elems[x_root].rank) {
+    }
+
+    // If y has a higher rank, update the parent of x
+    else if (elems[y_root].rank > elems[x_root].rank) {
         elems[x_root].parent = y_root;
         return y_root;
-    } else {
+    }
+
+    // If both of them have the same rank, update the parent of y
+    else {
         elems[y_root].parent = x_root;
         elems[x_root].rank++;
         return x_root;
@@ -199,10 +223,12 @@ void timeval_subtract(timeval *result, timeval *x, timeval *y) {
     result->tv_usec = x->tv_usec - y->tv_usec;
 }
 
+// Is the function value at i lesser than that of at j?
 bool vertex_compare(float* vertices, int i, int j) {
     return ((vertices[i] < vertices[j]) || (vertices[i] == vertices[j] && i < j));
 }
 
+// Is the function value at i greater than that of at j?
 bool isGreater(float * vertices, int v1, int v2) {
     return !vertex_compare(vertices, v1, v2);
 }
@@ -272,12 +298,13 @@ bool isBodyCP(int v, int dimx, int dimy, int dimz, int x, int y, int z,
     // Figure 7(d)
     if (noMax == 4 || noMin == 4) {
         // Ask the real Aditya: According to the diagram, such a configuration has only one body saddle
+        // Adhitya: I asked Vijay, such configurations are possible
         // TODO There are two body saddles. for now ignoring.
         return false;
     }
 
     // Figures 7(a), 7(c) have 0 body saddle(s)
-    if (!(noMax == 2 && noMin == 1 || noMax == 1 && noMin == 2)) {
+    if (!((noMax == 2 && noMin == 1) || (noMax == 1 && noMin == 2))) {
         // no body saddle.
         return false;
     }
@@ -837,6 +864,7 @@ void updateFaceCP(int vIndex, int v, int axis, int dimx, int dimy, int dimz, int
     }
 }
 
+// Get index for the saddle in range lowMax to highMin
 int getIndx(float* vertices, float current, int lowMax, int highMin) {
     // The face saddle will have the boundaries of lowMax and highMin
     float fmax = vertices[lowMax];
@@ -933,7 +961,7 @@ void updateBodyCP(int vIndex, int v, int dimx, int dimy, int dimz, int x, int y,
         return;
     }
 
-    if (!(noMax == 2 && noMin == 1 || noMax == 1 && noMin == 2)) {
+    if (!((noMax == 2 && noMin == 1) || (noMax == 1 && noMin == 2))) {
         // no body saddle.
         return;
     }
@@ -1581,32 +1609,51 @@ void findCriticalPointsGrid() {
 
 void cleanup_trees() {
     gettimeofday(&start1, NULL);
+
     int critical = 0;
-    int b1 = dimx * dimy;
-    int * x = new int[num_critical];
-    int * is_critical = new int[num_critical];
+    int* x = new int[num_critical];
+    int* is_critical = new int[num_critical];
+
     for (int i = 0; i < num_critical; i++) {
         int j = i; //check
-        is_critical[j] = 0;
-        long long int vpos = vertex_pos[j];
+        is_critical[j] = 0; // Initialize array
+        long long int vpos = vertex_pos[j]; // Position in vertices
+
+        // Familiar chant: we used this everywhere!
         long long int dimxy = dimx * dimy;
         long long int posz = vpos / dimxy;
         long long int xy = vpos % dimxy;
         long long int posy = xy / dimx;
         long long int posx = xy % dimx;
-        if ((join_children[2 * j] == -1) || (split_children[2 * j] == -1)
-                || (join_children[2 * j + 1] != -1)
-                || (split_children[2 * j + 1] != -1) || (posx == 0)
-                || (posx == dimx - 1) || (posy == 0) || (posy == dimy - 1)
-                || (posz == dimz - 1) || (posz == 0)) {
-            x[j] = critical;
-            is_critical[j] = 1;
-            critical++;
-        }
-    }
-    final = critical;
 
+            // Check if critical point is a degree-2 node in Join Tree
+        if ((join_children[2 * j] == -1)  || (join_children[2 * j + 1] != -1) ||
+            // Check if critical point is a degree-2 node in Split Tree
+            (split_children[2 * j] == -1) || (split_children[2 * j + 1] != -1) ||
+            // Does not lie on the x boundary
+            (posx == 0) || (posx == dimx - 1) ||
+            // Does not lie on the y boundary
+            (posy == 0) || (posy == dimy - 1) ||
+            // Does not lie on the z boundary
+            (posz == dimz - 1) || (posz == 0)) {
+                // This point is the most critical that you can get :P
+                x[j] = critical;
+                is_critical[j] = 1;
+                critical++;
+        }
+        //cout << j << " " << x[j] << endl;
+    }
+
+    // Total number of critical points that are degree-2 in
+    // both Join and Split Trees and do not lie on the boundary
+    final = critical;
     printf("\n------ new critical: %d---------\n", final);
+
+    /*
+    join_neigh = j_n; split_neigh = s_n; join_children = j_c;
+    split_children = s_c; vertex_index = v_i; function_values = f_v;
+    vertex_pos = v_p
+    */
     j_n = new int[critical];
     s_n = new int[critical];
     j_c = new int[2 * critical];
@@ -1614,42 +1661,32 @@ void cleanup_trees() {
     v_i = new int[critical];
     v_p = new long long int[critical];
     f_v = new float[critical];
-    //u_d = new int[critical];
-    //l_d = new int[critical];
     offset_c = new char[critical];
+
     for (int i = 0; i < 2 * critical; i++) {
         j_c[i] = s_c[i] = -1;
-        //u_d[i / 2] = l_d[i / 2] = 0;
     }
 
     int c = 0;
-    //int l=0;//leaf count
+    int leaf_count = 0;
 
-    //assuming cubic division
-    /*long long int sub_size = dimx;
-    if((dimx==dimy) && (dimy==dimz) && ((global_dim%dimx) == 0)) sub_size = dimx;
-    else if ((dimx==dimy) && (dimy==dimz)) sub_size = dimx-1;
-    else if (dimy < dimx)
-            sub_size = dimy;
-    else if (dimz < dimx)
-            sub_size = dimz;*/
-    /*long long int divx = (global_dimx / dimx);
-    long long int divy = (global_dimy / dimy);
-    long long int divz = (global_dimz / dimz);
-
-     */
     long long int scxy = divx * divy;
     long long int scz = subcube / scxy;
     long long int sxy = subcube % scxy;
     long long int scy = sxy / divx;
     long long int scx = sxy % divx;
-    int leaf_count = 0;
+
+    for (int i = 0; i < num_critical; i++) {
+        cout << i << " " << x[vertex_index[i]] << " " << vertex_index[i] << " " << x[i] << endl;
+    }
+
     for (int i = 0; i < num_critical; i++) {
         int j = vertex_index[i];
         int t = join_neigh[j];
 
-        if ((join_children[2 * j] == -1) || (split_children[2 * j] == -1))
+        if ((join_children[2 * j] == -1) || (split_children[2 * j] == -1)){
             leaves[leaf_count++] = x[j];
+        }
 
         if (is_critical[j] == 1) {
             v_i[c] = x[j]; //check
@@ -1662,42 +1699,47 @@ void cleanup_trees() {
             long long int posy = xy / dimx;
             long long int posx = xy % dimx;
 
-            long long int final_pos = (scz * sub_sizez + posz) * global_dimx
-                    * global_dimy + (scy * sub_sizey + posy) * global_dimx
-                    + (scx * sub_sizex + posx);
+            long long int final_pos = (scz * sub_sizez + posz) * global_dimx * global_dimy +
+                                      (scy * sub_sizey + posy) * global_dimx +
+                                      (scx * sub_sizex + posx);
 
             v_p[x[j]] = final_pos;
             offset_c[x[j]] = offset[j];
+
             while ((t != -1) && (is_critical[t] != 1)) {
                 t = join_neigh[t];
+                //cout << "join_neigh " << t << endl;
             }
+            //cout << "over" << endl;
             if (t == -1) {
                 j_n[x[j]] = -1;
 
-            } else {
+            }
+            else {
                 j_n[x[j]] = x[t];
                 if (j_c[2 * x[t]] == -1)
                     j_c[2 * x[t]] = x[j];
                 else
                     j_c[2 * x[t] + 1] = x[j];
-                //l_d[x[t]]++;
             }
+
+            // Adhitya: Remove later: Split Tree Pruning
             t = split_neigh[j];
-            while ((t != -1) && (is_critical[t] != 1))
+            while ((t != -1) && (is_critical[t] != 1)) {
                 t = split_neigh[t];
+            }
             if (t == -1) {
                 s_n[x[j]] = -1;
 
-            } else {
+            }
+            else {
                 s_n[x[j]] = x[t];
                 if (s_c[2 * x[t]] == -1)
                     s_c[2 * x[t]] = x[j];
                 else
                     s_c[2 * x[t] + 1] = x[j];
-                //u_d[x[t]]++;
             }
             c++;
-
         }
     }
     int temp = num_critical;
@@ -1715,11 +1757,7 @@ void cleanup_trees() {
     num_critical = critical;
     vertex_index = v_i;
     function_values = f_v;
-    //vertex_pos = v_p;
-    //upper_degree = u_d;
-    //lower_degree = l_d;
     offset = offset_c;
-    //isprocessed,uppdegree,lowerdegree
     gettimeofday(&end1, NULL);
     timeval_subtract(&result, &end1, &start1);
     mtime = ((result.tv_sec) * 1000 + result.tv_usec / 1000.0) + 0.5;
@@ -1730,9 +1768,7 @@ void cleanup_trees() {
 }
 
 // Read the grid for input file
-
 void readInputGrid(char * file) {
-
     ifstream input_file(file, ios::in | ios::binary);
     unsigned char * data = new unsigned char[num_vert];
     input_file.read((char*) data, sizeof (unsigned char) * num_vert);
@@ -1745,57 +1781,106 @@ void readInputGrid(char * file) {
     }
 }
 
-void serialtree() {
+int max_lower_root_count = 0;
 
+void serialtree() {
     //testRoots();
     sortVertices();
+
     gettimeofday(&start1, NULL);
+
+    // Compute the Join Union
     struct Elems *jU = new struct Elems[num_critical];
     //int * Rep = new int[num_critical];
-    for (int s = 0; s < num_critical; s++) {
-        int i = vertex_index[s];
-        ElemSet(jU, i);
-        for (int j = 0; j < lower_root_count[i]; j++) {
 
+    for (int s = 0; s < num_critical; s++) {
+        // vertex_index now has the list of sorted indexes
+        int i = vertex_index[s];
+
+        // Just for the parent node
+        ElemSet(jU, i);
+
+        // lower_root_count ranges between 0 and 2
+        for (int j = 0; j < lower_root_count[i]; j++) {
             int k = i * MAX_ADJ + j;
             int rt = lower_roots[k];
+
+            // Returns the newly found parent
             int f = findit(jU, rt);
+
+            // What the node actually represents
             int r = jU[f].rep;
 
-            if (r == i) continue;
+            // The newly found parent represents the current node, it's already been processed
+            if (r == i) {
+                // Break from inner loop
+                continue;
+            }
+
+            // So the parent we found now, will be joined with our current parent
+            // This means both of them will be neighbours
             join_neigh[r] = i;
-            if (join_children[2 * i] == -1)
+
+            // For the first component
+            if (join_children[2 * i] == -1) {
                 join_children[2 * i] = r;
-            else
+            }
+
+            // For the second component
+            else {
                 join_children[2 * i + 1] = r;
+            }
+
+            // Better: unify(jU, newly_found_parent, current_parent)
             int g = unify(jU, f, i);
             jU[g].rep = i;
-
         }
     }
     delete[] jU;
+
+    // Compute the Split Union
     struct Elems *sU = new struct Elems[num_critical];
     //int * Rep = new int[num_critical];
 
     for (int s = 0; s < num_critical; s++) {
+
         int i = vertex_index[num_critical - s - 1];
+
+        // Just for the parent node
         ElemSet(sU, i);
+
+        // Traverse the Upper Roots this time
         for (int j = 0; j < upper_root_count[i]; j++) {
 
             int k = i * MAX_ADJ + j;
             int rt = upper_roots[k];
-            //if(upper_root_count[i]==2) printf("\nroot%d : %d\n",j+1,rt);
 
+            // Returns the newly found parent
             int f = findit(sU, rt);
+
+            // What the node actually represents
             int r = sU[f].rep;
-            //if(upper_root_count[i]==2) printf("\nroot%d : %d r: %d\n",j+1,rt,r);
-            if (r == i) continue;
-            //if(f==findit(sU,i)) continue;
+
+            // The newly found parent represents the current node, it's already been processed
+            if (r == i){
+                continue;
+            }
+
+            // So the parent we found now, and this will split with our current parent
+            // This means both of them will be neighbours
             split_neigh[r] = i;
-            if (split_children[2 * i] == -1)
+
+            // For the first component
+            if (split_children[2 * i] == -1){
                 split_children[2 * i] = r;
-            else
+            }
+
+            // For the second component
+            else {
                 split_children[2 * i + 1] = r;
+            }
+
+            // Better: unify(sU, newly_found_parent, current_parent)
             int g = unify(sU, f, i);
             sU[g].rep = i;
 
@@ -1947,18 +2032,16 @@ int main(int argc, char **argv) {
     timeval_subtract(&result, &end1, &start);
     mtime = ((result.tv_sec) * 1000 + result.tv_usec / 1000.0) + 0.5;
     //printTimings();
-    int touched_critical_points = 0;
     printf("\n\n Total time: %ld milliseconds\n critical points:%d\n\n", mtime,
             num_critical);
     //printf("\n touched: %d minima: %d, maxima %d saddles %d final %d\n",
     //touched_critical_points, num_minima, num_maxima, num_saddle, final);
-    int fp, fp2;
     size_t csz = sizeof (char);
     size_t isz = sizeof (int);
     size_t fsz = sizeof (float);
     gettimeofday(&start, NULL);
     int dummy;
-    fp = open(filename, O_RDWR | O_CREAT | O_TRUNC, 0777);
+    int fp = open(filename, O_RDWR | O_CREAT | O_TRUNC, 0777);
     dummy = write(fp, (void*) (&num_vert), isz);
     dummy = write(fp, (void*) (&(ext.x)), 2 * isz);
     dummy = write(fp, (void*) (&(ext.y)), 2 * isz);

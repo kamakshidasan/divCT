@@ -151,20 +151,17 @@ void print(long long array[], const int size){
 }
 
 void seqmerge(int a[],int size, int temp[]){ //standard code to merge two sorted sequence of elements
-
-
     int i,m,k,l;
-
-
     int mid = size/2 -1 ;
     int low = 0;
     int high = size-1;
-    l=low;
-    i=low;
-    m=mid+1;
+    l = low;
+    i = low;
+    m = mid+1;
 
     while((l<=mid)&&(m<=high)){
 
+         // lessVertex compares the function values and then sorts the indices
          if(lessVertex(a[l],a[m])){
              temp[i]=a[l];
              l++;
@@ -197,40 +194,31 @@ void seqmerge(int a[],int size, int temp[]){ //standard code to merge two sorted
 void mergesort(int a[], int size, int temp[], int threads) { //parallel merge sort
 //a is the array base address, size is the length of the array this instance of merge sort is acting upon
 //temp is the temporary array required, threads is the available no. of total threads that can be created at this level
-
-         if ( threads <= 1) { //run out of max no. of threads
-
-                if (size>1){ //still elements to sort
-
-                        qsort(a,size,sizeof(int),compVertex);
-                        //std::sort(a, a+size,NewCompare());
-
-                        //sort using the library sort function deterministic quick sort for larger values and insertion sort for smaller values
-                //Note: merge sort is not used as base case as it would incur in high no. of function call overheads
-                }
-
-                }
-
-        else if (threads > 1) {
-
-                #pragma omp parallel sections num_threads(2) // Call the two parallel sections below with two children threads
-                        {
-
-                        #pragma omp section //parallel section 1 acting on the first half of the parent array
-                                {
-                                mergesort(a, size/2, temp, threads/2); //hence the size is halved as well as the no. of threads
-                                }
-
-                        #pragma omp section //parallel section 2 acting on the last half of the parent array
-                                {
-                                mergesort(a + size/2, size - size/2,temp + size/2, threads - threads/2);
-                                //address of a and temp are updated as well as the size and number of threads
-
-                                }
-                        }
-                }
-
-        seqmerge(a,size,temp); //finally merge the children array by asinhgle thread
+    if (threads <= 1) { //run out of max no. of threads
+        if (size>1){ //still elements to sort
+            qsort(a,size,sizeof(int),compVertex);
+            //std::sort(a, a+size,NewCompare());
+            //sort using the library sort function deterministic quick sort for larger values and insertion sort for smaller values
+            //Note: merge sort is not used as base case as it would incur in high no. of function call overheads
         }
+    }
+    else if (threads > 1) {
+        #pragma omp parallel sections num_threads(2) // Call the two parallel sections below with two children threads
+        {
+            #pragma omp section // parallel section 1 acting on the first half of the parent array
+            {
+                mergesort(a, size/2, temp, threads/2); // hence the size is halved as well as the no. of threads
+            }
+
+            #pragma omp section // parallel section 2 acting on the last half of the parent array
+            {
+                mergesort(a + size/2, size - size/2,temp + size/2, threads - threads/2);
+                //address of a and temp are updated as well as the size and number of threads
+            }
+        }
+    }
+
+    seqmerge(a,size,temp); //finally merge the children array by a single thread
+}
 
 #endif
