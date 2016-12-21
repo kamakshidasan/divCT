@@ -1207,7 +1207,6 @@ void fillCriticalPoints() {
     for (cp = 0; cp < num_critical; cp++) {
         int v = critical_points[cp];
 
-        //printf("\nnumcritical:%d, %d\n",cp,num_critical);
         lower_root_count[cp] = 0;
         upper_root_count[cp] = 0;
 
@@ -1617,6 +1616,7 @@ void cleanup_trees() {
     for (int i = 0; i < num_critical; i++) {
         int j = i; //check
         is_critical[j] = 0; // Initialize array
+        x[j] = -1;
         long long int vpos = vertex_pos[j]; // Position in vertices
 
         // Familiar chant: we used this everywhere!
@@ -1641,7 +1641,7 @@ void cleanup_trees() {
                 is_critical[j] = 1;
                 critical++;
         }
-        //cout << j << " " << x[j] << endl;
+
     }
 
     // Total number of critical points that are degree-2 in
@@ -1676,10 +1676,14 @@ void cleanup_trees() {
     long long int scy = sxy / divx;
     long long int scx = sxy % divx;
 
-    for (int i = 0; i < num_critical; i++) {
-        cout << i << " " << x[vertex_index[i]] << " " << vertex_index[i] << " " << x[i] << endl;
-    }
-
+    /*
+        i --> index
+        x[i] --> indice of critical point after pruning
+        vertex_index[i] --> indice after being sorted
+        x[vertex_index[i]] --> In these pruned set of critical points, What is it's indice in the sorted order?
+        join_neigh[i] --> Join neighbour for the original indice
+        join_neigh[vertex_index[i] --> In the pruned set of critical points, What is the sorted indice of its join neighbour?
+    */
     for (int i = 0; i < num_critical; i++) {
         int j = vertex_index[i];
         int t = join_neigh[j];
@@ -1688,7 +1692,8 @@ void cleanup_trees() {
             leaves[leaf_count++] = x[j];
         }
 
-        if (is_critical[j] == 1) {
+        // Check if point after pruning is critical
+        if (is_critical[j] == 1) { // x[j] will exist in this case
             v_i[c] = x[j]; //check
             f_v[x[j]] = function_values[j];
 
@@ -1706,42 +1711,61 @@ void cleanup_trees() {
             v_p[x[j]] = final_pos;
             offset_c[x[j]] = offset[j];
 
+            // If Join neighbour is not critical, then join with parent
             while ((t != -1) && (is_critical[t] != 1)) {
                 t = join_neigh[t];
-                //cout << "join_neigh " << t << endl;
             }
-            //cout << "over" << endl;
+
+            // Join neighbour does not exist
             if (t == -1) {
                 j_n[x[j]] = -1;
-
             }
+
+            // The newly found parent is critical, and therefore is the new join neighbour
             else {
                 j_n[x[j]] = x[t];
-                if (j_c[2 * x[t]] == -1)
+                // Mark this node as the child of the new parent
+                // If the first child has not been assigned, then take it's place :)
+                if (j_c[2 * x[t]] == -1) {
                     j_c[2 * x[t]] = x[j];
-                else
+                }
+                // Otherwise, the second one is up for grabs
+                else {
                     j_c[2 * x[t] + 1] = x[j];
+                }
             }
 
-            // Adhitya: Remove later: Split Tree Pruning
+            // Time for Pruning the Split Tree!
             t = split_neigh[j];
+
+            // If Split neighbour is not critical, then join with parent
             while ((t != -1) && (is_critical[t] != 1)) {
                 t = split_neigh[t];
             }
+
+            // Split neighbour does not exist
             if (t == -1) {
                 s_n[x[j]] = -1;
-
             }
+
+            // The newly found parent is critical, and therefore is the new split neighbour
             else {
                 s_n[x[j]] = x[t];
-                if (s_c[2 * x[t]] == -1)
+                // Mark this node as the child of the new parent
+                // If the first child has not been assigned, then take it's place :)
+                if (s_c[2 * x[t]] == -1){
                     s_c[2 * x[t]] = x[j];
-                else
+                }
+                // Otherwise, the second one is up for grabs
+                else {
                     s_c[2 * x[t] + 1] = x[j];
+                }
             }
             c++;
         }
     }
+
+    // The temporary arrays can finally be removed and assigned to the much more fancier arrays
     int temp = num_critical;
     delete[] join_neigh;
     delete[] split_neigh;
@@ -1977,16 +2001,6 @@ int main(int argc, char **argv) {
     // Computer number of vertices
     num_vert = dimx * dimy * dimz;
 
-    /* long long int sub_size = dimx;
-     if((dimx==dimy) && (dimy==dimz) && ((global_dim%dimx) == 0)) sub_size = dimx;
-     else if ((dimx==dimy) && (dimy==dimz)) sub_size = dimx-1;
-     else if (dimy < dimx)
-            sub_size = dimy;
-    else if (dimz < dimx)
-            sub_size = dimz;
-     */
-
-
     long long int scxy = divx * divy;
     long long int sxy = subcube % scxy;
     long long int scx = sxy % divz;
@@ -1995,7 +2009,7 @@ int main(int argc, char **argv) {
 
     // Find the extents
     // Adhitya: Find out what happens if the extents are greater than global dimensions
-    // Adhitya: More interestingly, how does splitting take place?
+    // Adhitya: More interestingly, how does splitting take place? - It happens in subdiv.m
     ext.x[0] = scx * sub_sizex;
     ext.x[1] =
             (((scx + 1) * sub_sizex) < global_dimx) ?
@@ -2063,8 +2077,6 @@ int main(int argc, char **argv) {
     mtime = ((result.tv_sec) * 1000 + result.tv_usec / 1000.0) + 0.5;
 
     printf("\n---------writing time------: %ld\n\n", mtime);
-
-    //std::cin.ignore();
 
 }
 
