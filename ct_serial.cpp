@@ -1995,8 +1995,8 @@ int main(int argc, char **argv) {
 
     //global_dim = atoi(argv[6]);
 
-    num_cores = atoi(argv[7]);
-    omp_set_num_threads(num_cores);
+    //num_cores = atoi(argv[7]);
+    //omp_set_num_threads(num_cores);
 
     // Computer number of vertices
     num_vert = dimx * dimy * dimz;

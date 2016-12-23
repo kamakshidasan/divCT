@@ -5,6 +5,8 @@
 #include <unistd.h>
 #include <string.h>
 #include <omp.h>
+#include "Graph.h"
+
 int divx = 2; //no. of divisions along x-axis
 int divy = 2;
 int  divz =  2;
@@ -18,9 +20,6 @@ struct timeval tv1, tv2;
 struct Graph* CTGraph;
 int ext[6];
 int dim;
-enum {
-	false, true
-};
 long long int * vp;
 float * fv;
 char * off;
@@ -42,13 +41,19 @@ int n2;
 int vn1, vn2, b1, b2;
 int final;
 int critical;
+
+enum {
+	false, true
+};
+
 void Union(int child, int parent, int * Uk) {
 	if (child == parent)
 		return;
 	Uk[child] = parent;
 	Uk[parent] = -1;
-	//printf("union\n");
 }
+
+
 int Find(int elem, int* Uk) {
 	if (Uk[elem] == -2)
 		return -2;
@@ -68,6 +73,7 @@ int Find(int elem, int* Uk) {
 	//printf("find\n");
 	return elem;
 }
+
 int lessVertex(int i, int j) {
 
 	//printf("\nless vertex\n");
@@ -91,7 +97,9 @@ int lessVertex(int i, int j) {
 	}
 	return false;
 }
-void seqmerge() { //standard code to merge two sorted sequence of elements
+
+// Standard code to merge two sorted sequence of elements
+void seqmerge() {
 
 	int * a = vi;
 	int size = n1 + n2;
@@ -106,27 +114,27 @@ void seqmerge() { //standard code to merge two sorted sequence of elements
 	m = mid + 1;
 
 	while ((l <= mid) && (m <= high)) {
-
 		if (lessVertex(a[l], a[m])) {
 			temp[i] = a[l];
 			own[i] = 0;
 			l++;
-		} else {
+		}
+		else {
 			temp[i] = a[m];
 			own[i] = 1;
 			m++;
 		}
 		i++;
 	}
-	//  printf("\n.%d..%d...%d...\n",vp[a[1]],vp[a[n1]],lessVertex(a[n1],a[1]));
-//printf("l: %d, m: %d i: %d",l,m,i);
+
 	if (l > mid) {
 		for (k = m; k <= high; k++) {
 			temp[i] = a[k];
 			own[i] = 1;
 			i++;
 		}
-	} else {
+	}
+	else {
 		for (k = l; k <= mid; k++) {
 			temp[i] = a[k];
 			own[i] = 0;
@@ -292,8 +300,8 @@ void cleanup_trees() {
 
 	free(vp);
 	free(fv);
-free(x);
-free(is_critical);
+    free(x);
+    free(is_critical);
 	//printf("cleanup tree: critical: %d. critical_prev: %d\n", critical,			num_critical);
 
 	/*for( i=0;i<critical;i++)
@@ -306,68 +314,62 @@ free(is_critical);
 }
 
 int min(int x, int y) {
-	if (x < y)
-		return x;
-	else
-		return y;
+    return x < y ? x : y;
 }
+
 int max(int x, int y) {
-	if (x < y)
-		return y;
-	else
-		return x;
+    return x < y ?  y: x;
 }
 
 int main(int argc, char **argv) {
-
-	//to be read from file
-
-//omp_set_num_threads(1);
+    //omp_set_num_threads(1);
 
 	//vn1 = 389 * 133 * 66;
-	
-	FILE* param = fopen("params.txt","w");
-fscanf(param,"%d %d %d %d %d %d",&divx,&divy,&divz,&sub_sizex,&sub_sizey,&sub_sizez);
-fclose(param);
-dimx = divx*sub_sizex;
-dimy = divy*sub_sizey;
-dimz = divz*sub_sizez;
-	
-int tree;
-if (argc == 5)
-		tree = atoi(argv[4]);
 
-	char file1[30], file2[30],file[30];
+    // Process the params file
+	FILE* param = fopen("params.txt","r");
+    fscanf(param,"%d %d %d %d %d %d",&divx,&divy,&divz,&sub_sizex,&sub_sizey,&sub_sizez);
+    fclose(param);
+    dimx = divx*sub_sizex;
+    dimy = divy*sub_sizey;
+    dimz = divz*sub_sizez;
+
+    // Adhitya: For the final stitch, give the argument value as 1
+    int tree;
+    if (argc == 5) {
+		tree = atoi(argv[4]);
+    }
+
+    // Process the files produced by the earlier program
+	char file1[30], file2[30], file[30];
 	strcpy(file1, argv[1]);
 	strcat(file1, ".dat");
 	strcpy(file2, argv[2]);
 	strcat(file2, ".dat");
-strcpy(file, argv[3]);
-strcat(file, ".dat");
+    strcpy(file, argv[3]);
+    strcat(file, ".dat");
 
-	/*int vp1[6] = {100,200,2,3,400,500};
-	 int vp2[6] = {10,20,2,3,40,50};
-	 int p1[6] = {-1,0,1,1,2,3};
-	 int p2[6] = {-1,0,1,1,2,3};
-	 int c1[12] = {1,-1,2,3,4,-1,5,-1,-1,-1,-1,-1};
-	 int c2[12] = {1,-1,2,3,4,-1,5,-1,-1,-1,-1,-1};*/
-
-	//to be obtained after merging f1 and f2
-	//int S[12] = {10,11,5,4,3,9,2,8,7,1,0,6};
+    // Store size of integer, char, float
 	size_t isz = sizeof(int);
 	size_t csz = sizeof(char);
 	size_t fsz = sizeof(float);
-	int ext1[6];
-	int ext2[6];
 
+    int ext1[6], ext2[6];
 	int fp1, fp2;
+
+	// Open both the input files
 	fp1 = open(file1, O_RDONLY);
 	fp2 = open(file2, O_RDONLY);
 
 	gettimeofday(&tv1, NULL);
 
+	// Look how data is stored in the files towards the end of the previous program
+
+    // Store the number of vertices
 	read(fp1, (void*) (&vn1), isz); //fscanf(fp1,"%d",&n1);
 	read(fp2, (void*) (&vn2), isz); //fscanf(fp2,"%d",&n2);
+
+	// Store the extents
 	read(fp1, (void*) (ext1), 6 * isz);
 	read(fp2, (void*) (ext2), 6 * isz);
 
@@ -379,52 +381,61 @@ strcat(file, ".dat");
 	ext[3] = max(ext1[3], ext2[3]);
 	ext[5] = max(ext1[5], ext2[5]);
 
+    // Store the number of critical points
 	read(fp1, (void*) (&n1), isz);
 	read(fp2, (void*) (&n2), isz);
 	printf("n1:%d,n2:%d\n", n1, n2);
 
-//exit(0);
-
-	fv = (float*) malloc((n1 + n2) * sizeof(float)); //function_values
-	read(fp1, (void*) fv, n1 * fsz); 
+    // Store the function values
+	fv = (float*) malloc((n1 + n2) * sizeof(float));
+	read(fp1, (void*) fv, n1 * fsz);
 	read(fp2, (void*) (fv + n1), n2 * fsz);
 
-	vi = (int*) malloc((n1 + n2) * sizeof(int)); //vertex_index
+    // Store vertex_index
+	vi = (int*) malloc((n1 + n2) * sizeof(int));
 	read(fp1, (void*) vi, n1 * isz);
 	read(fp2, (void*) (vi + n1), n2 * isz);
 
-	vp = (long long int*) malloc((n1 + n2) * sizeof(long long int));//vertex_pos
+    // Store vertex_pos
+	vp = (long long int*) malloc((n1 + n2) * sizeof(long long int));
 	read(fp1, (void*) vp, n1 * sizeof(long long int));
 	read(fp2, (void*) (vp + n1), n2 * sizeof(long long int));
 
-	p = (int*) malloc((n1 + n2) * sizeof(int));//join tree parent array
+    // Store the join tree parent array
+	p = (int*) malloc((n1 + n2) * sizeof(int));
 	read(fp1, (void*) p, n1 * isz);
 	read(fp2, (void*) (p + n1), n2 * isz);
 
-	c = (int*) malloc(2 * (n1 + n2) * sizeof(int));//join tree children array j[2i] and j[2i+1] are the two children of ith critical point
+    // Store the join tree children
+	c = (int*) malloc(2 * (n1 + n2) * sizeof(int));
 	read(fp1, (void*) c, 2 * n1 * isz);
 	read(fp2, (void*) (c + 2 * n1), 2 * n2 * isz);
 
-	p_ = (int*) malloc((n1 + n2) * sizeof(int));//similar arrays for split tree
+    // Store the split tree parents
+	p_ = (int*) malloc((n1 + n2) * sizeof(int));
 	read(fp1, (void*) p_, n1 * isz);
 	read(fp2, (void*) (p_ + n1), n2 * isz);
 
+    // Store the split tree children
 	c_ = (int*) malloc(2 * (n1 + n2) * sizeof(int));
 	read(fp1, (void*) c_, 2 * n1 * isz);
 	read(fp2, (void*) (c_ + 2 * n1), 2 * n2 * isz);
 
-	off = (char*) malloc((n1 + n2) * sizeof(char));//offset to indicate if a point is face or body saddle
+    // Store the offset - to indicate if a point is face or body saddle
+	off = (char*) malloc((n1 + n2) * sizeof(char));
 	read(fp1, (void*) off, n1 * csz);
 	read(fp2, (void*) (off + n1), n2 * csz);
 
 	close(fp1);
 	close(fp2);
 
+    // Adhitya: Uncomment the following lines, before release
 	//remove(file1);
 	//remove(file2);
 
-	U = (int*) malloc((n1 + n2) * sizeof(int));//UF for join tree
-	U_ = (int*) malloc((n1 + n2) * sizeof(int));//UF for split tree
+    // Union Find for Join and Split Trees
+	U = (int*) malloc((n1 + n2) * sizeof(int));
+	U_ = (int*) malloc((n1 + n2) * sizeof(int));
 
 	own = (int*) malloc((n1 + n2) * sizeof(int));
 	temp = (int*) malloc((n1 + n2) * sizeof(int));
@@ -432,7 +443,6 @@ strcat(file, ".dat");
 	gettimeofday(&tv2, NULL);
 
 	printf("\n alloc and read time = %f miliseconds\n",(double) (tv2.tv_usec - tv1.tv_usec) / 1000+ (double) (tv2.tv_sec - tv1.tv_sec) * 1000);
-
 
 
 	int i, j, k;
@@ -444,39 +454,25 @@ strcat(file, ".dat");
 		U[i] = -2;
 		U_[i] = -2;
 
-		if (i < n1) {
-			/*fscanf(fp1,"%f",&fv[i]);
-			 fscanf(fp1,"%d",&vi[i]);
-			 fscanf(fp1,"%d",&vp[i]);//vp[i] = vp1[i];
-			 fscanf(fp1,"%d",&p[i]);//p[i] = p1[i];
-			 fscanf(fp1,"%d",&c[2*i]);//c[2*i]=c1[2*i];
-			 fscanf(fp1,"%d",&c[2*i+1]);//c[2*i+1]=c1[2*i+1];
-			 fscanf(fp1,"%d",&off[i]);*/
+		if (i >= n1) {
 
-		} else {
-			j = i - n1;
-			//fscanf(fp2,"%f",&fv[i]);
-			//fscanf(fp2,"%d",&vi[i]);
-			vi[i] = vi[i] + n1;
-			//fscanf(fp2,"%d",&vp[i]);//vp[i] = vp2[j];
-			//vp[i] = vp[i] + vn1 - b1;
-			//fscanf(fp2,"%d",&p[i]);//p[i] = (p2[j]==-1)?-1:n1+p2[j];
+            // Process vertex indices
+			vi[i] = n1 + vi[i];
+
+            // Process parents
 			p[i] = (p[i] == -1) ? -1 : n1 + p[i];
 			p_[i] = (p_[i] == -1) ? -1 : n1 + p_[i];
 
-			//fscanf(fp2,"%d",&c[2*i]);//c[2*i] = (c2[2*j]==-1)?-1:(n1+c2[2*j]);
+            // Process children
 			c[2 * i] = (c[2 * i] == -1) ? -1 : (n1 + c[2 * i]);
 			c_[2 * i] = (c_[2 * i] == -1) ? -1 : (n1 + c_[2 * i]);
-			//fscanf(fp2,"%d",&c[2*i+1]);//c[2*i+1] = (c2[2*j+1]==-1)?-1:(n1+c2[2*j+1]);
+
 			c[2 * i + 1] = (c[2 * i + 1] == -1) ? -1 : (n1 + c[2 * i + 1]);
 			c_[2 * i + 1] = (c_[2 * i + 1] == -1) ? -1 : (n1 + c_[2 * i + 1]);
-			//fscanf(fp2,"%d",&off[i]);
 		}
-		//printf("%d\n",U[i]);
 	}
 
-	//for (i=0;i<(n1+n2);i++){if (fv[i]==255) printf("\nvi>n1+n2:%f\n",fv[i]);}
-
+    // Phew, finally better names to work with!
 	critical = n1 + n2;
 	j_n = p;
 	s_n = p_;
@@ -487,15 +483,9 @@ strcat(file, ".dat");
 	f_v = fv;
 	offset = off;
 
-	/*for (i=0;i<critical;i++){
-	 if (j_n[i]==-1) printf("\njoin root:%d,value:%f\n",i,f_v[i]);
-	 if (s_n[i]==-1) printf("\nsplit root:%d,value:%f\n",i,f_v[i]);
-
-	 }*/
-
+    // Merge the vertex_indices
 	seqmerge();
 	v_i = temp;
-	//printf("\nhere\n");
 
 	int * S = temp;
 	int jmp = 0;
@@ -514,7 +504,6 @@ strcat(file, ".dat");
 		if ((vp[z] == vp[zm]) && (off[z] == 0)
 				&& (off[zm] == 0) && (own[i] != own[i - 1])) {
 
-			//printf("\nbrdr\n");
 			//if(jmp==0){printf("hello: pos: %d,val: %f,index: %d\n\n",vp[z],fv[z],temp[i]);jmp = 2;}
 			p[zm] = z;
 			if (c[2 * z] == -1)
@@ -597,8 +586,7 @@ strcat(file, ".dat");
 		}
 
 
-		if ((vp[z] == vp[zp]) && (off[z] == 0)
-				&& (off[zp] == 0) && (own[i] != own[i + 1])) {
+		if ((vp[z] == vp[zp]) && (off[z] == 0) && (off[zp] == 0) && (own[i] != own[i + 1])) {
 			//printf("hello\n\n");
 			p_[z] = zp;
 			if (c_[2 * zp] == -1)
@@ -610,7 +598,7 @@ strcat(file, ".dat");
 		}
 
 	}
-free(U_);
+    free(U_);
 	}
 
 
@@ -771,9 +759,9 @@ gettimeofday(&tv1, NULL);
 	printf("\nct computed\n");
 gettimeofday(&tv2, NULL);
 
-	printf("\n tree merge time = %f miliseconds\n",			(double) (tv2.tv_usec - tv1.tv_usec) / 1000					+ (double) (tv2.tv_sec - tv1.tv_sec) * 1000);
-	
-	
+	printf("\n tree merge time = %f milliseconds\n",			(double) (tv2.tv_usec - tv1.tv_usec) / 1000					+ (double) (tv2.tv_sec - tv1.tv_sec) * 1000);
+
+
 	//-------------------------------------uncomment to write final contour tree to file-----------------
 	printf("\nwriting final contour tree\n");
 	printGraph(CTGraph,f_v);
