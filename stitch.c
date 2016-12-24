@@ -55,8 +55,9 @@ void Union(int child, int parent, int * Uk) {
 
 
 int Find(int elem, int* Uk) {
-	if (Uk[elem] == -2)
+	if (Uk[elem] == -2) {
 		return -2;
+    }
 
 	int t_elem = elem;
 	int tt_elem;
@@ -324,8 +325,6 @@ int max(int x, int y) {
 int main(int argc, char **argv) {
     //omp_set_num_threads(1);
 
-	//vn1 = 389 * 133 * 66;
-
     // Process the params file
 	FILE* param = fopen("params.txt","r");
     fscanf(param,"%d %d %d %d %d %d",&divx,&divy,&divz,&sub_sizex,&sub_sizey,&sub_sizez);
@@ -449,6 +448,8 @@ int main(int argc, char **argv) {
 
 	gettimeofday(&tv1, NULL);
 
+	// Merge both trees together
+
 	#pragma omp parallel for schedule(dynamic) private(i)
 	for (i = 0; i < (n1 + n2); i++) {
 		U[i] = -2;
@@ -484,164 +485,183 @@ int main(int argc, char **argv) {
 	offset = off;
 
     // Merge the vertex_indices
+    // Duplicate points will appear next to each other now
 	seqmerge();
 	v_i = temp;
 
 	int * S = temp;
 	int jmp = 0;
 
-#pragma omp parallel sections private(i,k)
-{
-	#pragma omp section
-	{
-	for (i = 1; i < n1 + n2; i++) {
-		int z = S[i];
-		int zm = S[i-1];
-		//if(vp[z]==33682195) printf("\n,,,,value:%f,,offset:%d,,own:%d,,,index:%d,\n",fv[z],off[z],own[i],temp[i]);
-		//	printf("\n%d\n",i);
-		//if(z>=n1) {printf("damn: %d, z: %d %d %d %f\n",i,z,S[1],S[2],fv[S[n1+1]]);}
-		//if(own[i]==1){printf("\n own1 %d func: %f \n",i,fv[z]);break;};
-		if ((vp[z] == vp[zm]) && (off[z] == 0)
-				&& (off[zm] == 0) && (own[i] != own[i - 1])) {
+    #pragma omp parallel sections private(i,k)
+    {
+        // Join Tree
 
-			//if(jmp==0){printf("hello: pos: %d,val: %f,index: %d\n\n",vp[z],fv[z],temp[i]);jmp = 2;}
-			p[zm] = z;
-			if (c[2 * z] == -1)
-				c[2 * z] = zm;
-			else
-				if (zm != c[2 * z])
-					c[2 * z + 1] = zm;
-			//printf("dup:%d\n",i);
-			Union(zm, z, U);
-		}
-		if (c[2 * z] != -1) {
-			if (U[c[2 * z]] != -2) {
-				//printf("find1:%d U: %d\n",i,U[c[2*z]]);
-				k = Find(c[2 * z], U);
-				if (k != z) {
-					Union(k, z, U);
-					p[k] = z;
-					c[2 * z ] = k;
-					if (c[2 * z + 1] == k)
-						c[2 * z + 1] = -1;
-				}
-			}
-		}
-		if (c[2 * z + 1] != -1) {
-			if (U[c[2 * z + 1]] != -2) {
-				//printf("find2:%d\n",i);
-				k = Find(c[2 * z + 1], U);
-				if (k != z) {
-					Union(k, z, U);
-					p[k] = z;
-					if (c[2 * z ] != k)
-						c[2 * z + 1] = k;
-					else
-						c[2 * z + 1] = -1;
-				}
-			}
-		}
+        #pragma omp section
+        {
+            for (i = 1; i < n1 + n2; i++) {
+                int z = S[i];
+                int zm = S[i-1];
 
-	}
-	free(U);
-		}//omp section 1 ends
+                // Check if z and zm are boundary duplicate points
+                if ((vp[z] == vp[zm]) && (off[z] == 0) && (off[zm] == 0) && (own[i] != own[i - 1])) {
+                    // Make z as parent of zm
+                    p[zm] = z;
+                    // Add zm to z's children list
+                    if (c[2 * z] == -1) {
+                        c[2 * z] = zm;
+                    }
+                    else {
+                        // Adhitya: What happens to the second child in this case?
+                        if (c[2 * z] != zm) {
+                            c[2 * z + 1] = zm;
+                        }
+                    }
+                    //printf("dup:%d\n",i);
+                    Union(zm, z, U);
+                }
 
+                // For the first child of z
+                if (c[2 * z] != -1) {
+                    // If child is present in U
+                    if (U[c[2 * z]] != -2) {
+                        // Find the parent from U
+                        k = Find(c[2 * z], U);
+                        // If new parent and current parent are not the same
+                        if (k != z) {
+                            Union(k, z, U);
+                            // Make z as parent of k
+                            p[k] = z;
+                            // Make k as child of z
+                            c[2 * z] = k;
 
+                            // If the second child is k, then it should not be repeated
+                            if (c[2 * z + 1] == k) {
+                                c[2 * z + 1] = -1;
+                            }
+                        }
+                    }
+                }
 
-	#pragma omp section
-{
-	for (i = (n1 + n2 - 2); i >= 0; i--) {
-		//	printf("\n%d\n",i);
-		//if(S[i]>=n1) {printf("damn: %d, S[i]: %d %d %d %f\n",i,S[i],S[1],S[2],fv[S[n1+1]]);}
-		//if(own[i]==1){printf("\n own1 %d func: %f \n",i,fv[S[i]]);break;};
-		int z = S[i];
-		int zp = S[i+1];
+                // For the first child of z
+                if (c[2 * z + 1] != -1) {
+                    // If child is present in U
+                    if (U[c[2 * z + 1]] != -2) {
+                        // Find the parent from U
+                        k = Find(c[2 * z + 1], U);
+                        // If new parent and current parent are not the same
+                        if (k != z) {
+                            Union(k, z, U);
+                            // Make z as parent of k
+                            p[k] = z;
+                            // Make k as child of z
+                            if (c[2 * z] != k) {
+                                c[2 * z + 1] = k;
+                            }
+                            // If first child is already k, then avoid duplication
+                            else {
+                                c[2 * z + 1] = -1;
+                            }
+                        }
+                    }
+                }
+            }
+            free(U);
+		} // omp section 1 ends
 
-		if (c_[2 * z] != -1) {
-			if (U_[c_[2 * z]] != -2) {
-				//printf("find1:%d U: %d\n",i,U[c[2*z]]);
-				k = Find(c_[2 * z], U_);
-				if (k != z) {
-					Union(k, z, U_);
-					p_[k] = z;
-					c_[2 * z] = k;
-					if (c_[2 * z + 1] == k)
-											c_[2 * z + 1] = -1;
-				}
-			}
-		}
-		if (c_[2 * z + 1] != -1) {
-			if (U_[c_[2 * z + 1]] != -2) {
-				//printf("find2:%d\n",i);
-				k = Find(c_[2 * z + 1], U_);
-				if (k != z) {
-					Union(k, z, U_);
-					p_[k] = z;
-					if (c_[2 * z ] != k)
-						c_[2 * z + 1] = k;
-					else
-						c_[2 * z + 1] = -1;
-				}
-			}
-		}
+        // Split Tree
 
+        #pragma omp section
+        {
+            // This time go down the sorted vertices because we are computing a split tree
+            for (i = (n1 + n2 - 2); i >= 0; i--) {
+                int z = S[i];
+                int zp = S[i+1];
 
-		if ((vp[z] == vp[zp]) && (off[z] == 0) && (off[zp] == 0) && (own[i] != own[i + 1])) {
-			//printf("hello\n\n");
-			p_[z] = zp;
-			if (c_[2 * zp] == -1)
-				c_[2 * zp] = z;
-			else
-				c_[2 * zp + 1] = z;
-			//printf("dup:%d\n",i);
-			Union(z, zp, U_);
-		}
+                // If first child of z exists
+                if (c_[2 * z] != -1) {
+                    // If the child is present in the union
+                    if (U_[c_[2 * z]] != -2) {
+                        // Find the parent from U_
+                        k = Find(c_[2 * z], U_);
+                        // If both new parent and current parent are not the same
+                        if (k != z) {
+                            Union(k, z, U_);
+                            // Make parent of k as z
+                            p_[k] = z;
+                            // Make k as child of z
+                            c_[2 * z] = k;
+                            // If the second child is k, then avoid duplication
+                            if (c_[2 * z + 1] == k) {
+                                c_[2 * z + 1] = -1;
+                            }
+                        }
+                    }
+                }
 
-	}
-    free(U_);
-	}
+                // If second child of z exists
+                if (c_[2 * z + 1] != -1) {
+                    // If child is present in U_
+                    if (U_[c_[2 * z + 1]] != -2) {
+                        // Find the parent from U_
+                        k = Find(c_[2 * z + 1], U_);
+                        // If both new parent and current parent are not the same
+                        if (k != z) {
+                            Union(k, z, U_);
+                            // Make parent of k as z
+                            p_[k] = z;
+                            // Make k as child of z
+                            if (c_[2 * z] != k) {
+                                c_[2 * z + 1] = k;
+                            }
+                            // If first child is already k, then avoid duplication
+                            else {
+                                c_[2 * z + 1] = -1;
+                            }
+                        }
+                    }
+                }
 
+                // Check if z and zm are boundary duplicate points
+                if ((vp[z] == vp[zp]) && (off[z] == 0) && (off[zp] == 0) && (own[i] != own[i + 1])) {
+                    // Make zp as parent of z
+                    p_[z] = zp;
+                    // Add z to zp's children list
+                    if (c_[2 * zp] == -1) {
+                        c_[2 * zp] = z;
+                    }
+                    else {
+                        if (c_[2 * zp] == z) {
+                            c_[2 * zp + 1] = z;
+                        }
+                    }
+                    Union(z, zp, U_);
+                }
+            }
+            free(U_);
+        } // omp section 2 ends
+    }
 
-}
-free(own);
+    free(own);
 
 	gettimeofday(&tv2, NULL);
 
-	printf("\n stitch time = %f miliseconds\n",			(double) (tv2.tv_usec - tv1.tv_usec) / 1000					+ (double) (tv2.tv_sec - tv1.tv_sec) * 1000);
-	//printf("\nvn1:%d,vn2:%d",vn1,vn2);
-	//printf("\n final:%d\n",final);
-
-	/*for( i = 0;i < n1+n2;i ++) {
-	 if(p[i] != -1 && !lessVertex(i, p[i])) {
-	 printf("\npartial damn\n");
-	 }
-	 }*/
+	printf("\n stitch time = %f miliseconds\n",	(double) (tv2.tv_usec - tv1.tv_usec) / 1000	+ (double) (tv2.tv_sec - tv1.tv_sec) * 1000);
 
 	gettimeofday(&tv1, NULL);
-	//printf("before cleanup--- n1:%d,n2:%d,b1:%d,b2:%d\n",n1,n2,b1,b2);
 
+	if (tree==1) {
+        cleanup_trees();
+    }
 
-
-	if(tree==1) cleanup_trees();
 	gettimeofday(&tv2, NULL);
 
-	printf("\n cleanup time = %f miliseconds\n",			(double) (tv2.tv_usec - tv1.tv_usec) / 1000					+ (double) (tv2.tv_sec - tv1.tv_sec) * 1000);
+	printf("\n cleanup time = %f miliseconds\n",(double) (tv2.tv_usec - tv1.tv_usec) / 1000	+ (double) (tv2.tv_sec - tv1.tv_sec) * 1000);
 	int edge;
-
-	/*for (i=0;i<critical;i++){
-	 if (j_n[i]==-1) printf("\njoin root:%d,value:%f, find : %d \n",i,f_v[i],Find(1580910,U));
-	 if (s_n[i]==-1) printf("\nsplit root:%d,value:%f,find :%d\n",i,f_v[i],Find(9,U_));
-
-
-
-	 }*/
-
-
 
 	int fp = open(file, O_RDWR | O_CREAT | O_TRUNC, 0777);
 	int num_critical = critical;
 	int num_vert = 0;//vn1 + vn2 - b1;
-printf("\n no. of critical points: %d\n",critical);
+    printf("\n no. of critical points: %d\n",critical);
 	gettimeofday(&tv1, NULL);
 	write(fp, (void*) (&num_vert), isz);
 	write(fp, (void*) (ext), 6*isz);
@@ -658,12 +678,12 @@ printf("\n no. of critical points: %d\n",critical);
 	close(fp);
 
 	gettimeofday(&tv2, NULL);
-//sync(fp);
-	printf("\n writing time = %f miliseconds\n",			(double) (tv2.tv_usec - tv1.tv_usec) / 1000					+ (double) (tv2.tv_sec - tv1.tv_sec) * 1000);
+    //sync(fp);
+	printf("\n writing time = %f miliseconds\n",(double) (tv2.tv_usec - tv1.tv_usec) / 1000	+ (double) (tv2.tv_sec - tv1.tv_sec) * 1000);
 
-//printf("\ntobecalculated: %d, string %s\n",tree,argv[4]);
-	if (tree != 1)
+	if (tree != 1){
 		return 0;
+    }
 
 	int *upper_degree = (int*) malloc(num_critical * sizeof(int));
 	int *lower_degree = (int*) malloc(num_critical * sizeof(int));
@@ -672,7 +692,7 @@ printf("\n no. of critical points: %d\n",critical);
 
 	int b, num_leaves = 0;
 	CTGraph = createGraph(num_critical);
-gettimeofday(&tv1, NULL);
+    gettimeofday(&tv1, NULL);
 	#pragma omp parallel for schedule(dynamic) private(b)
 	for (b = 0; b < num_critical; b++) {
 		upper_degree[b] = 0;
@@ -757,15 +777,15 @@ gettimeofday(&tv1, NULL);
 		}
 	}
 	printf("\nct computed\n");
-gettimeofday(&tv2, NULL);
+    gettimeofday(&tv2, NULL);
 
-	printf("\n tree merge time = %f milliseconds\n",			(double) (tv2.tv_usec - tv1.tv_usec) / 1000					+ (double) (tv2.tv_sec - tv1.tv_sec) * 1000);
+	printf("\n tree merge time = %f milliseconds\n",(double) (tv2.tv_usec - tv1.tv_usec) / 1000	+ (double) (tv2.tv_sec - tv1.tv_sec) * 1000);
 
 
 	//-------------------------------------uncomment to write final contour tree to file-----------------
 	printf("\nwriting final contour tree\n");
 	printGraph(CTGraph,f_v);
-//--------------------------------------------------------------------------------
+    //--------------------------------------------------------------------------------
 	return 0;
 }
 
