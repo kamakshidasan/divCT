@@ -149,8 +149,6 @@ void seqmerge() {
 
 void cleanup_trees() {
 
-	//printf("inside cleanup---- n1:%d,n2:%d,b1:%d,b2:%d\n",n1,n2,b1,b2);
-
 	int i, j, t;
 
 	int num_critical = n1 + n2;
@@ -160,62 +158,35 @@ void cleanup_trees() {
 
 	critical = 0;
 
-	//#pragma omp parallel for schedule(dynamic)
 	for (i = 0; i < num_critical; i++) {
-		j = temp[i]; //check
+		j = temp[i]; // That sorted array after seqmerge()
 		is_critical[j] = 0;
-		/*if (c[2 * j] == j) {
-			printf("\nself-child\n");
-			c[2 * j] = -1;
-		}
-		if (c[2 * j + 1] == j) {
-			printf("\nself-child\n");
-			c[2 * j + 1] = -1;
-		}
-		if (c_[2 * j] == j) {
-			printf("\nself-child\n");
-			c_[2 * j] = -1;
-		}
-		if (c_[2 * j + 1] == j) {
-			printf("\nself-child\n");
-			c_[2 * j + 1] = -1;
-		}
-		if ((c[2 * j] == c[2 * j + 1])&&(c[2 * j]!=-1)) {
-			printf("\ndouble-child\n");
-			c[2 * j + 1] = -1;
-		}
-		if ((c_[2 * j] == c_[2 * j + 1])&&(c_[2 * j]!=-1)) {
-			printf("\ndouble-child\n");
-			c_[2 * j + 1] = -1;
-		}*/
-
 
 		long long int vpos = vp[j];
 		long long int dimxy = dimx * dimy;
-				long long int posz = vpos / dimxy;
-				long long int xy = vpos % dimxy;
-				long long int posy = xy / dimx;
-				long long int posx = xy % dimx;
+        long long int posz = vpos / dimxy;
+        long long int xy = vpos % dimxy;
+        long long int posy = xy / dimx;
+        long long int posx = xy % dimx;
 
-		if ((c[2 * j] == -1 && c[2 * j + 1] == -1)
-				|| (c_[2 * j] == -1 && c_[2 * j + 1] == -1)
-				|| (c[2 * j + 1] != -1 && c[2 * j] != -1)
-				|| (c_[2 * j + 1] != -1 && c_[2 * j] != -1)
-				|| (posx == ext[0])
-				|| (posx == ext[1])
-								|| (posy == ext[2])
-								|| (posy == ext[3])
-								|| (posz == ext[4])
-								|| (posz == ext[5])){
-			x[j] = critical;
-			is_critical[j] = 1;
-			v_i[critical] = critical;
-
-			critical++;
+            // If node is a leaf
+		if ((c[2 * j] == -1 && c[2 * j + 1] == -1) || (c_[2 * j] == -1 && c_[2 * j + 1] == -1) ||
+            // If both children in either trees exist
+            (c[2 * j + 1] != -1 && c[2 * j] != -1) || (c_[2 * j + 1] != -1 && c_[2 * j] != -1) ||
+            // Lies on the x boundary
+            (posx == ext[0]) || (posx == ext[1]) ||
+            // Lies on the y boundary
+            (posy == ext[2]) || (posy == ext[3]) ||
+            // Lies on the z boundary
+            (posz == ext[4]) || (posz == ext[5])) {
+                x[j] = critical;
+                is_critical[j] = 1;
+                v_i[critical] = critical;
+                critical++;
 		}
-
 	}
 
+    // Create arrays!
 	j_n = (int*) malloc(critical * sizeof(int));
 	s_n = (int*) malloc(critical * sizeof(int));
 	j_c = (int*) malloc(2 * critical * sizeof(int));
@@ -225,75 +196,90 @@ void cleanup_trees() {
 	f_v = (float*) malloc(critical * sizeof(float));
 	offset = (char*) malloc(critical * sizeof(char));
 
-//u_d=new int[critical];
-//l_d=new int[critical];
-
+    // Initialize the necessary arrays
 	#pragma omp parallel for schedule(dynamic) private(i)
 	for (i = 0; i < critical; i++) {
-		j_c[2 * i] = j_c[2 * i + 1] = s_c[2 * i] = s_c[2 * i + 1] = j_n[i] =
-				s_n[i] = -1;
-		//	u_d[i/2]=l_d[i/2]=0;
+		j_c[2 * i] = j_c[2 * i + 1] = s_c[2 * i] = s_c[2 * i + 1] = j_n[i] = s_n[i] = -1;
 	}
 
-	int cl = 0;
 	int l = 0; //leaf count
 
 	#pragma omp parallel for schedule(dynamic) private(i,j,t)
 	for (i = 0; i < num_critical; i++) {
 		j = temp[i];
-		t = p[j];
-
-		//if ((join_children[2*j]==-1)||(split_children[2*j]==-1)) leaves[l++]=x[j];
 
 		if (is_critical[j] == 1) {
-			//v_i[cl] = x[j]; //check
+            // Update the function value
 			f_v[x[j]] = fv[j];
+			// Update the vertex position
 			v_p[x[j]] = vp[j];
+			// Update the offset
 			offset[x[j]] = off[j];
+
+            /* Clean the Join Tree */
+            // Get the parent
+            t = p[j];
+
+            // If parent is not critical, then join with a grandparent
 			while ((t != -1) && (is_critical[t] != 1)) {
 				t = p[t];
 			}
+
+            // Parent does not exist
 			if (t == -1) {
 				j_n[x[j]] = -1;
-
-			} else {
-				j_n[x[j]] = x[t];
-				if (j_c[2 * x[t]] == -1)
-					j_c[2 * x[t]] = x[j];
-				else
-					j_c[2 * x[t] + 1] = x[j];
-				//u_d[x[t]]++;
 			}
+
+			// Adhitya: Should this be parent?
+			// The newly found parent is critical, and therefore is the new join neighbour
+			else {
+				j_n[x[j]] = x[t];
+                // Mark this node as the child of the new parent
+                // If the first child has not been assigned, then take it's place :)
+				if (j_c[2 * x[t]] == -1) {
+					j_c[2 * x[t]] = x[j];
+                }
+                // Otherwise, the second one is up for grabs
+				else {
+					j_c[2 * x[t] + 1] = x[j];
+                }
+			}
+
+            /* Clean the Split Tree */
+            // Time for Pruning the Split Tree!
 			t = p_[j];
-			while ((t != -1) && (is_critical[t] != 1))
+
+			// If Split Parent is not critical, then split with grandparent
+			while ((t != -1) && (is_critical[t] != 1)) {
 				t = p_[t];
+            }
+
+            // Split parent does not exist
 			if (t == -1) {
 				s_n[x[j]] = -1;
 
-			} else {
-				s_n[x[j]] = x[t];
-				if (s_c[2 * x[t]] == -1)
-					s_c[2 * x[t]] = x[j];
-				else
-					s_c[2 * x[t] + 1] = x[j];
-				//l_d[x[t]]++;
 			}
-			//cl++;
 
+			// The newly found parent is critical, and therefore is the new split neighbour
+			else {
+				s_n[x[j]] = x[t];
+                // Mark this node as the child of the new parent
+                // If the first child has not been assigned, then take it's place :)
+				if (s_c[2 * x[t]] == -1) {
+					s_c[2 * x[t]] = x[j];
+                }
+                // Otherwise, the second one is up for grabs
+				else {
+					s_c[2 * x[t] + 1] = x[j];
+                }
+			}
 		}
 	}
-	//int temp = num_critical;
-	/*join_neigh=j_n;
-	 split_neigh=s_n;
 
-	 num_critical=critical;
-	 vertex_index = v_i;
-	 function_values = f_v;
-	 vertex_pos = v_p;
-	 upper_degree = u_d;
-	 lower_degree = l_d;*/
-	//isprocessed,uppdegree,lowerdegree
+    // Critical points after cleaning
 	final = critical;
+
+	// Cleaning complete - Free all the arrays already!
 	free(p);
 	free(p_);
 	free(c);
@@ -303,14 +289,7 @@ void cleanup_trees() {
 	free(fv);
     free(x);
     free(is_critical);
-	//printf("cleanup tree: critical: %d. critical_prev: %d\n", critical,			num_critical);
-
-	/*for( i=0;i<critical;i++)
-	 {if (j_n[i]>critical)
-	 printf("\nnanana\n")
-	 ;
-	 }*/
-
+	//printf("cleanup tree: critical: %d. critical_prev: %d\n", critical, num_critical);
 
 }
 
@@ -490,7 +469,6 @@ int main(int argc, char **argv) {
 	v_i = temp;
 
 	int * S = temp;
-	int jmp = 0;
 
     #pragma omp parallel sections private(i,k)
     {
@@ -649,15 +627,15 @@ int main(int argc, char **argv) {
 
 	gettimeofday(&tv1, NULL);
 
-	if (tree==1) {
+	if (tree == 1) {
         cleanup_trees();
     }
 
 	gettimeofday(&tv2, NULL);
 
 	printf("\n cleanup time = %f miliseconds\n",(double) (tv2.tv_usec - tv1.tv_usec) / 1000	+ (double) (tv2.tv_sec - tv1.tv_sec) * 1000);
-	int edge;
 
+    // Write everything stitched to a file
 	int fp = open(file, O_RDWR | O_CREAT | O_TRUNC, 0777);
 	int num_critical = critical;
 	int num_vert = 0;//vn1 + vn2 - b1;
@@ -691,31 +669,38 @@ int main(int argc, char **argv) {
 	int *is_processed = (int*) malloc(num_critical * sizeof(int));
 
 	int b, num_leaves = 0;
+	// Initialize a Contour Tree
 	CTGraph = createGraph(num_critical);
     gettimeofday(&tv1, NULL);
+
+    // Initialize the arrays
 	#pragma omp parallel for schedule(dynamic) private(b)
 	for (b = 0; b < num_critical; b++) {
 		upper_degree[b] = 0;
 		lower_degree[b] = 0;
 		is_processed[b] = 0;
 	}
+
+    // Look at Hamish Carr's Algorithm 4.2
+    // Find the number of leaves
 	#pragma omp parallel for schedule(dynamic) private(b)
 	for (b = 0; b < num_critical; b++) {
-		if (j_n[b] > -1)
-		__sync_fetch_and_add(lower_degree+j_n[b],1);
-			//lower_degree[j_n[b]]++;
-		if (s_n[b] > -1)
-		__sync_fetch_and_add(upper_degree+s_n[b],1);
-			//upper_degree[s_n[b]]++;
-		if (((j_c[2 * b] == -1) && (j_c[2 * b + 1] == -1))
-				|| ((s_c[2 * b] == -1) && (s_c[2 * b + 1] == -1)))
-		{
+        // lower_degree[j_n[b]]++;
+		if (j_n[b] > -1) {
+            __sync_fetch_and_add(lower_degree + j_n[b], 1);
+		}
+		// upper_degree[s_n[b]]++;
+		if (s_n[b] > -1) {
+            __sync_fetch_and_add(upper_degree + s_n[b], 1);
+		}
 
+        // Check if node is a leaf in either of the trees
+		if (((j_c[2 * b] == -1) && (j_c[2 * b + 1] == -1)) || ((s_c[2 * b] == -1) && (s_c[2 * b + 1] == -1))){
 			leaves[num_leaves] = b;
 			__sync_fetch_and_add(&num_leaves,1);
 		}
 	}
-	//int lcnt, ucnt, u, l;
+
 
 	#pragma omp parallel for schedule(dynamic) private(i)
 	for (i = 0; i < (num_leaves); i++) {
@@ -723,64 +708,75 @@ int main(int argc, char **argv) {
 		int tid = omp_get_thread_num();
 		//int i = get_global_id(0);
 		j = leaves[i]; //ith leaf
-		//printf("%d\n ",i);
 		while (!is_processed[j]) { //TODO check
 
 			//is_processed[j]++;
 			__sync_fetch_and_add(is_processed+j,1);
-			//#pragma omp atomic
-			//(touched_critical_points++);
+
+            //upper degree in join Y tree and lower degree in split Y' tree
 			if (lower_degree[j] == 0 && upper_degree[j] == 1) {
-				//upper degree in join Y tree and lower degree in split Y' tree
-				//local maxima
 				u = j_n[j];
-				while (is_processed[u] && j_n[u] != -1)
+				while (is_processed[u] && j_n[u] != -1) {
 					u = j_n[u];
+                }
 				#pragma omp critical
-				 addEdge(CTGraph,u,j);
-				if (is_processed[u])
+				{
+                    addEdge(CTGraph,u,j);
+                }
+				if (is_processed[u]) {
 					break;
+                }
+
 				//lcnt = --lower_degree[u];
 				lcnt = __sync_sub_and_fetch (lower_degree+u,1);//remove the vertex
-				/*#pragma omp critical
-				 lcnt = --lower_degree[u];*/
-
 				ucnt = upper_degree[u];
 
+                //add (u,j)
 				if ((lcnt == 0 && ucnt == 1) || (lcnt == 1 && ucnt == 0)) {
 					j = u;
-				} else {
+				}
+				else {
 					break;
 				}
-			} else if (lower_degree[j] == 1 && upper_degree[j] == 0) {
-				l = s_n[j];
-				while (is_processed[l] && s_n[l] != -1)
-					l = s_n[l];
-				#pragma omp critical
-				 addEdge(CTGraph,l,j);
-				if (is_processed[l])
-					break;
-				lcnt = lower_degree[l];
+			}
 
+			// lower degree in join Y tree and upper degree in split Y' tree
+            else if (lower_degree[j] == 1 && upper_degree[j] == 0) {
+				l = s_n[j];
+				while (is_processed[l] && s_n[l] != -1) {
+					l = s_n[l];
+                }
+				#pragma omp critical
+				{
+                    addEdge(CTGraph,l,j);
+                }
+
+                // Don't process it again!
+				if (is_processed[l]) {
+					break;
+                }
+				lcnt = lower_degree[l];
 				//ucnt = --upper_degree[l];
 				ucnt = __sync_sub_and_fetch (upper_degree+l,1);
-				//add (u,j)
 
+				//add (u,j)
 				if ((lcnt == 0 && ucnt == 1) || (lcnt == 1 && ucnt == 0)) {
 					j = l;
-				} else {
+				}
+				else {
 					break;
 				}
-			} else {
+			}
+			else {
 				break;
 			}
 		}
 	}
-	printf("\nct computed\n");
+
+	printf("\nContour Tree computed\n");
     gettimeofday(&tv2, NULL);
 
 	printf("\n tree merge time = %f milliseconds\n",(double) (tv2.tv_usec - tv1.tv_usec) / 1000	+ (double) (tv2.tv_sec - tv1.tv_sec) * 1000);
-
 
 	//-------------------------------------uncomment to write final contour tree to file-----------------
 	printf("\nwriting final contour tree\n");

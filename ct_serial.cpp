@@ -1630,11 +1630,11 @@ void cleanup_trees() {
         if ((join_children[2 * j] == -1)  || (join_children[2 * j + 1] != -1) ||
             // Check if critical point is a degree-2 node in Split Tree
             (split_children[2 * j] == -1) || (split_children[2 * j + 1] != -1) ||
-            // Does not lie on the x boundary
+            // Lies on the x boundary
             (posx == 0) || (posx == dimx - 1) ||
-            // Does not lie on the y boundary
+            // Lies on the y boundary
             (posy == 0) || (posy == dimy - 1) ||
-            // Does not lie on the z boundary
+            // Lies on the z boundary
             (posz == dimz - 1) || (posz == 0)) {
                 // This point is the most critical that you can get :P
                 x[j] = critical;
