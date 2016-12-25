@@ -57,12 +57,13 @@ void Union(int child, int parent, int * Uk) {
 int Find(int elem, int* Uk) {
 	if (Uk[elem] == -2) {
 		return -2;
-    }
+	}
 
 	int t_elem = elem;
 	int tt_elem;
-	while (Uk[elem] != -1)
+	while (Uk[elem] != -1) {
 		elem = Uk[elem];
+	}
 
 	//path compression
 
@@ -76,7 +77,7 @@ int Find(int elem, int* Uk) {
 }
 
 int lessVertex(int i, int j) {
-
+	
 	//printf("\nless vertex\n");
 	if (fv[i] < fv[j]) {
 		return true;
@@ -164,10 +165,10 @@ void cleanup_trees() {
 
 		long long int vpos = vp[j];
 		long long int dimxy = dimx * dimy;
-        long long int posz = vpos / dimxy;
-        long long int xy = vpos % dimxy;
-        long long int posy = xy / dimx;
-        long long int posx = xy % dimx;
+		long long int posz = vpos / dimxy;
+		long long int xy = vpos % dimxy;
+		long long int posy = xy / dimx;
+		long long int posx = xy % dimx;
 
             // If node is a leaf
 		if ((c[2 * j] == -1 && c[2 * j + 1] == -1) || (c_[2 * j] == -1 && c_[2 * j + 1] == -1) ||
@@ -209,23 +210,23 @@ void cleanup_trees() {
 		j = temp[i];
 
 		if (is_critical[j] == 1) {
-            // Update the function value
+            		// Update the function value
 			f_v[x[j]] = fv[j];
 			// Update the vertex position
 			v_p[x[j]] = vp[j];
 			// Update the offset
 			offset[x[j]] = off[j];
 
-            /* Clean the Join Tree */
-            // Get the parent
-            t = p[j];
+            		/* Clean the Join Tree */
+            		// Get the parent
+           		t = p[j];
 
-            // If parent is not critical, then join with a grandparent
+            		// If parent is not critical, then join with a grandparent
 			while ((t != -1) && (is_critical[t] != 1)) {
 				t = p[t];
 			}
 
-            // Parent does not exist
+            		// Parent does not exist
 			if (t == -1) {
 				j_n[x[j]] = -1;
 			}
@@ -234,27 +235,27 @@ void cleanup_trees() {
 			// The newly found parent is critical, and therefore is the new join neighbour
 			else {
 				j_n[x[j]] = x[t];
-                // Mark this node as the child of the new parent
-                // If the first child has not been assigned, then take it's place :)
+                		// Mark this node as the child of the new parent
+                		// If the first child has not been assigned, then take it's place :)
 				if (j_c[2 * x[t]] == -1) {
 					j_c[2 * x[t]] = x[j];
-                }
-                // Otherwise, the second one is up for grabs
+                		}
+                		// Otherwise, the second one is up for grabs
 				else {
 					j_c[2 * x[t] + 1] = x[j];
-                }
+				}
 			}
 
-            /* Clean the Split Tree */
-            // Time for Pruning the Split Tree!
+            		/* Clean the Split Tree */
+           		// Time for Pruning the Split Tree!
 			t = p_[j];
 
 			// If Split Parent is not critical, then split with grandparent
 			while ((t != -1) && (is_critical[t] != 1)) {
 				t = p_[t];
-            }
+            		}
 
-            // Split parent does not exist
+            		// Split parent does not exist
 			if (t == -1) {
 				s_n[x[j]] = -1;
 
@@ -263,20 +264,20 @@ void cleanup_trees() {
 			// The newly found parent is critical, and therefore is the new split neighbour
 			else {
 				s_n[x[j]] = x[t];
-                // Mark this node as the child of the new parent
-                // If the first child has not been assigned, then take it's place :)
+                		// Mark this node as the child of the new parent
+                		// If the first child has not been assigned, then take it's place :)
 				if (s_c[2 * x[t]] == -1) {
 					s_c[2 * x[t]] = x[j];
-                }
-                // Otherwise, the second one is up for grabs
+				}
+                		// Otherwise, the second one is up for grabs
 				else {
 					s_c[2 * x[t] + 1] = x[j];
-                }
+                		}
 			}
 		}
 	}
 
-    // Critical points after cleaning
+    	// Critical points after cleaning
 	final = critical;
 
 	// Cleaning complete - Free all the arrays already!
@@ -287,8 +288,8 @@ void cleanup_trees() {
 
 	free(vp);
 	free(fv);
-    free(x);
-    free(is_critical);
+    	free(x);
+    	free(is_critical);
 	//printf("cleanup tree: critical: %d. critical_prev: %d\n", critical, num_critical);
 
 }
@@ -302,37 +303,37 @@ int max(int x, int y) {
 }
 
 int main(int argc, char **argv) {
-    //omp_set_num_threads(1);
+	//omp_set_num_threads(1);
 
-    // Process the params file
+	// Process the params file
 	FILE* param = fopen("params.txt","r");
-    fscanf(param,"%d %d %d %d %d %d",&divx,&divy,&divz,&sub_sizex,&sub_sizey,&sub_sizez);
-    fclose(param);
-    dimx = divx*sub_sizex;
-    dimy = divy*sub_sizey;
-    dimz = divz*sub_sizez;
-
-    // Adhitya: For the final stitch, give the argument value as 1
-    int tree;
-    if (argc == 5) {
+	fscanf(param,"%d %d %d %d %d %d",&divx,&divy,&divz,&sub_sizex,&sub_sizey,&sub_sizez);
+	fclose(param);
+	dimx = divx*sub_sizex;
+	dimy = divy*sub_sizey;
+	dimz = divz*sub_sizez;
+	
+	// Adhitya: For the final stitch, give the argument value as 1
+	int tree;
+	if (argc == 5) {
 		tree = atoi(argv[4]);
-    }
+	}
 
-    // Process the files produced by the earlier program
+	// Process the files produced by the earlier program
 	char file1[30], file2[30], file[30];
 	strcpy(file1, argv[1]);
 	strcat(file1, ".dat");
 	strcpy(file2, argv[2]);
 	strcat(file2, ".dat");
-    strcpy(file, argv[3]);
-    strcat(file, ".dat");
+	strcpy(file, argv[3]);
+	strcat(file, ".dat");
 
-    // Store size of integer, char, float
+	// Store size of integer, char, float
 	size_t isz = sizeof(int);
 	size_t csz = sizeof(char);
 	size_t fsz = sizeof(float);
 
-    int ext1[6], ext2[6];
+	int ext1[6], ext2[6];
 	int fp1, fp2;
 
 	// Open both the input files
@@ -343,7 +344,7 @@ int main(int argc, char **argv) {
 
 	// Look how data is stored in the files towards the end of the previous program
 
-    // Store the number of vertices
+	// Store the number of vertices
 	read(fp1, (void*) (&vn1), isz); //fscanf(fp1,"%d",&n1);
 	read(fp2, (void*) (&vn2), isz); //fscanf(fp2,"%d",&n2);
 
@@ -359,59 +360,59 @@ int main(int argc, char **argv) {
 	ext[3] = max(ext1[3], ext2[3]);
 	ext[5] = max(ext1[5], ext2[5]);
 
-    // Store the number of critical points
+	// Store the number of critical points
 	read(fp1, (void*) (&n1), isz);
 	read(fp2, (void*) (&n2), isz);
 	printf("n1:%d,n2:%d\n", n1, n2);
-
-    // Store the function values
+	
+	// Store the function values
 	fv = (float*) malloc((n1 + n2) * sizeof(float));
 	read(fp1, (void*) fv, n1 * fsz);
 	read(fp2, (void*) (fv + n1), n2 * fsz);
 
-    // Store vertex_index
+	// Store vertex_index
 	vi = (int*) malloc((n1 + n2) * sizeof(int));
 	read(fp1, (void*) vi, n1 * isz);
 	read(fp2, (void*) (vi + n1), n2 * isz);
-
-    // Store vertex_pos
+	
+	// Store vertex_pos
 	vp = (long long int*) malloc((n1 + n2) * sizeof(long long int));
 	read(fp1, (void*) vp, n1 * sizeof(long long int));
 	read(fp2, (void*) (vp + n1), n2 * sizeof(long long int));
-
-    // Store the join tree parent array
+	
+	// Store the join tree parent array
 	p = (int*) malloc((n1 + n2) * sizeof(int));
 	read(fp1, (void*) p, n1 * isz);
 	read(fp2, (void*) (p + n1), n2 * isz);
-
-    // Store the join tree children
+	
+	// Store the join tree children
 	c = (int*) malloc(2 * (n1 + n2) * sizeof(int));
 	read(fp1, (void*) c, 2 * n1 * isz);
 	read(fp2, (void*) (c + 2 * n1), 2 * n2 * isz);
-
-    // Store the split tree parents
+	
+	// Store the split tree parents
 	p_ = (int*) malloc((n1 + n2) * sizeof(int));
 	read(fp1, (void*) p_, n1 * isz);
 	read(fp2, (void*) (p_ + n1), n2 * isz);
-
-    // Store the split tree children
+	
+	// Store the split tree children
 	c_ = (int*) malloc(2 * (n1 + n2) * sizeof(int));
 	read(fp1, (void*) c_, 2 * n1 * isz);
 	read(fp2, (void*) (c_ + 2 * n1), 2 * n2 * isz);
-
-    // Store the offset - to indicate if a point is face or body saddle
+	
+	// Store the offset - to indicate if a point is face or body saddle
 	off = (char*) malloc((n1 + n2) * sizeof(char));
 	read(fp1, (void*) off, n1 * csz);
 	read(fp2, (void*) (off + n1), n2 * csz);
 
 	close(fp1);
 	close(fp2);
-
-    // Adhitya: Uncomment the following lines, before release
+	
+	// Adhitya: Uncomment the following lines, before release
 	//remove(file1);
 	//remove(file2);
-
-    // Union Find for Join and Split Trees
+	
+	// Union Find for Join and Split Trees
 	U = (int*) malloc((n1 + n2) * sizeof(int));
 	U_ = (int*) malloc((n1 + n2) * sizeof(int));
 
@@ -436,14 +437,14 @@ int main(int argc, char **argv) {
 
 		if (i >= n1) {
 
-            // Process vertex indices
+            		// Process vertex indices
 			vi[i] = n1 + vi[i];
 
-            // Process parents
+           		// Process parents
 			p[i] = (p[i] == -1) ? -1 : n1 + p[i];
 			p_[i] = (p_[i] == -1) ? -1 : n1 + p_[i];
 
-            // Process children
+            		// Process children
 			c[2 * i] = (c[2 * i] == -1) ? -1 : (n1 + c[2 * i]);
 			c_[2 * i] = (c_[2 * i] == -1) ? -1 : (n1 + c_[2 * i]);
 
@@ -452,7 +453,7 @@ int main(int argc, char **argv) {
 		}
 	}
 
-    // Phew, finally better names to work with!
+	// Phew, finally better names to work with!
 	critical = n1 + n2;
 	j_n = p;
 	s_n = p_;
@@ -463,8 +464,8 @@ int main(int argc, char **argv) {
 	f_v = fv;
 	offset = off;
 
-    // Merge the vertex_indices
-    // Duplicate points will appear next to each other now
+	// Merge the vertex_indices
+	// Duplicate points will appear next to each other now
 	seqmerge();
 	v_i = temp;
 
@@ -544,7 +545,7 @@ int main(int argc, char **argv) {
                 }
             }
             free(U);
-		} // omp section 1 ends
+	} // omp section 1 ends
 
         // Split Tree
 
@@ -628,18 +629,18 @@ int main(int argc, char **argv) {
 	gettimeofday(&tv1, NULL);
 
 	if (tree == 1) {
-        cleanup_trees();
-    }
+		cleanup_trees();
+    	}
 
 	gettimeofday(&tv2, NULL);
 
 	printf("\n cleanup time = %f miliseconds\n",(double) (tv2.tv_usec - tv1.tv_usec) / 1000	+ (double) (tv2.tv_sec - tv1.tv_sec) * 1000);
 
-    // Write everything stitched to a file
+	// Write everything stitched to a file
 	int fp = open(file, O_RDWR | O_CREAT | O_TRUNC, 0777);
 	int num_critical = critical;
 	int num_vert = 0;//vn1 + vn2 - b1;
-    printf("\n no. of critical points: %d\n",critical);
+	printf("\n no. of critical points: %d\n",critical);
 	gettimeofday(&tv1, NULL);
 	write(fp, (void*) (&num_vert), isz);
 	write(fp, (void*) (ext), 6*isz);
@@ -656,12 +657,12 @@ int main(int argc, char **argv) {
 	close(fp);
 
 	gettimeofday(&tv2, NULL);
-    //sync(fp);
+	//sync(fp);
 	printf("\n writing time = %f miliseconds\n",(double) (tv2.tv_usec - tv1.tv_usec) / 1000	+ (double) (tv2.tv_sec - tv1.tv_sec) * 1000);
 
-	if (tree != 1){
+	if (tree != 1) {
 		return 0;
-    }
+	}
 
 	int *upper_degree = (int*) malloc(num_critical * sizeof(int));
 	int *lower_degree = (int*) malloc(num_critical * sizeof(int));
@@ -671,9 +672,9 @@ int main(int argc, char **argv) {
 	int b, num_leaves = 0;
 	// Initialize a Contour Tree
 	CTGraph = createGraph(num_critical);
-    gettimeofday(&tv1, NULL);
-
-    // Initialize the arrays
+	gettimeofday(&tv1, NULL);
+	
+	// Initialize the arrays
 	#pragma omp parallel for schedule(dynamic) private(b)
 	for (b = 0; b < num_critical; b++) {
 		upper_degree[b] = 0;
@@ -681,20 +682,20 @@ int main(int argc, char **argv) {
 		is_processed[b] = 0;
 	}
 
-    // Look at Hamish Carr's Algorithm 4.2
-    // Find the number of leaves
+	// Look at Hamish Carr's Algorithm 4.2
+	// Find the number of leaves
 	#pragma omp parallel for schedule(dynamic) private(b)
 	for (b = 0; b < num_critical; b++) {
         // lower_degree[j_n[b]]++;
 		if (j_n[b] > -1) {
-            __sync_fetch_and_add(lower_degree + j_n[b], 1);
+            		__sync_fetch_and_add(lower_degree + j_n[b], 1);
 		}
 		// upper_degree[s_n[b]]++;
 		if (s_n[b] > -1) {
-            __sync_fetch_and_add(upper_degree + s_n[b], 1);
+            		__sync_fetch_and_add(upper_degree + s_n[b], 1);
 		}
 
-        // Check if node is a leaf in either of the trees
+        	// Check if node is a leaf in either of the trees
 		if (((j_c[2 * b] == -1) && (j_c[2 * b + 1] == -1)) || ((s_c[2 * b] == -1) && (s_c[2 * b + 1] == -1))){
 			leaves[num_leaves] = b;
 			__sync_fetch_and_add(&num_leaves,1);
@@ -713,25 +714,25 @@ int main(int argc, char **argv) {
 			//is_processed[j]++;
 			__sync_fetch_and_add(is_processed+j,1);
 
-            //upper degree in join Y tree and lower degree in split Y' tree
+            		//upper degree in join Y tree and lower degree in split Y' tree
 			if (lower_degree[j] == 0 && upper_degree[j] == 1) {
 				u = j_n[j];
 				while (is_processed[u] && j_n[u] != -1) {
 					u = j_n[u];
-                }
+                		}
 				#pragma omp critical
 				{
-                    addEdge(CTGraph,u,j);
-                }
+                    			addEdge(CTGraph,u,j);
+                		}
 				if (is_processed[u]) {
 					break;
-                }
+				}
 
 				//lcnt = --lower_degree[u];
 				lcnt = __sync_sub_and_fetch (lower_degree+u,1);//remove the vertex
 				ucnt = upper_degree[u];
 
-                //add (u,j)
+                		//add (u,j)
 				if ((lcnt == 0 && ucnt == 1) || (lcnt == 1 && ucnt == 0)) {
 					j = u;
 				}
@@ -741,20 +742,20 @@ int main(int argc, char **argv) {
 			}
 
 			// lower degree in join Y tree and upper degree in split Y' tree
-            else if (lower_degree[j] == 1 && upper_degree[j] == 0) {
+            		else if (lower_degree[j] == 1 && upper_degree[j] == 0) {
 				l = s_n[j];
 				while (is_processed[l] && s_n[l] != -1) {
 					l = s_n[l];
-                }
+                		}
 				#pragma omp critical
 				{
-                    addEdge(CTGraph,l,j);
-                }
+                    			addEdge(CTGraph,l,j);
+                		}
 
-                // Don't process it again!
+                		// Don't process it again!
 				if (is_processed[l]) {
 					break;
-                }
+                		}
 				lcnt = lower_degree[l];
 				//ucnt = --upper_degree[l];
 				ucnt = __sync_sub_and_fetch (upper_degree+l,1);
@@ -774,7 +775,7 @@ int main(int argc, char **argv) {
 	}
 
 	printf("\nContour Tree computed\n");
-    gettimeofday(&tv2, NULL);
+    	gettimeofday(&tv2, NULL);
 
 	printf("\n tree merge time = %f milliseconds\n",(double) (tv2.tv_usec - tv1.tv_usec) / 1000	+ (double) (tv2.tv_sec - tv1.tv_sec) * 1000);
 
